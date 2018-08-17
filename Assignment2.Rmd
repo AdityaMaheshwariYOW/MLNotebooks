@@ -1,0 +1,34 @@
+---
+title: "Assignment2"
+author: "Aditya Maheshwari"
+date: '2018-08-17'
+output: html_document
+---
+
+# Final Assessment
+
+This assessment involves applying the concepts you have learned so far. It is open book, but the datasets are different so keep that in mind. It is expected that you will submit working code at the end in a "knit" document in html format. 
+
+The assessment has 2 questions, one will focus on regression and the other on classification. 
+
+For both questions, first use filtering functions and some plots to give a feeling of what the data is like. Then remove features (columns) that are irrelevant if they are not needed.
+
+# First task: Regression
+
+Predict the maximum temperature given all of the features excluding mean temperature, of a temperature dataset of WW2 data. If you have to separate by location go ahead. Do a proper cross validation. The code should appear in the code block below with comments specifying what you did. Also, at the end there should be some sort of conclusion.
+
+Make sure you explain in the conclusion which features are good and which ones are not good (based on hypothesis testing and results in summary of the model).
+
+```{r avocado}
+filepath <- "./Datasets/summaryOfWeather.csv"
+weathers <- read.csv(filepath, header=TRUE)
+```
+
+# Second task: Classification
+
+Build a classification model to predict which medal (or NA) an athlete will receive given the other features in this olympic dataset. Again provide some sort of conclusion.
+
+```{r recipes}
+filepath <- "./Datasets/athlete_events.csv"
+events <- read.csv(filepath, header=TRUE)
+```

@@ -1,0 +1,434 @@
+---
+title: "ClassificationIntro"
+author: "Aditya Maheshwari"
+date: '2018-07-05'
+output: html_document
+---
+
+# Introduction
+
+Classification is a technique used to place data into predefined groups. In the real world, people classify fruits by how raw or ripe they are, classify other people by attributes (nerdy, athletic), and classify items by how much they cost (cheap, expensive). We classify different things every day, whether it is the way we store clothing or arrange notes or decide which furniture goes in what room. In statistics, classification models are used when predicting a categorical variable. This is different than regression which tries to predict an actual value. However, a regression model can be turned into a classification model by grouping the outputs into ranges.
+
+## Applications of Classifications
+
++ Sentiment from product reviews
++ Severity of impact for different groups of people following a natural disaster
++ Will a stock will go up or down.
++ Which objects exist in a picture
++ Medical diagnosis
+
+## Topics in Notebook
+
++ Logistic Regression
++ Decision Trees
+
+# Logistic Regression
+
+Logistic regression is used to fit a regression curve when y is a categorical variable. A categorical variable (as you can tell from the name) is a variable that has a finite number of categories as its output. For example, in the Titanic data "Survived" is categorical as it falls into 1 (survived) or 0 (didn't survive), and the outcome of a coin flip is categorical as well.
+
+## Conditional Probability
+
+The input for logistic regression is a type of continuous variable and therefore it is important to explain the idea of conditional probability to demonstrate how it works. 
+
+Conditional probability is the probability of an event occuring given that another event has occured. In math it's usually represented as Pr(a = x | b) or probability event a is equivalent to x given event b occuring. For independent events such as flips of a coin, Pr(a | b) == Pr(a) or Pr(head | (previous is a tail) ) == Pr(head). 
+
+## Modelling relationship 
+
+Say for some abstract categories we want to model a relationship between p(X)=Pr(Y=1 | X) and X. In linear regression we would define a relationship like p(X) = $\beta_0$ + $\beta_1$X. When all of our outputs are either in category 0 or 1, many of the points on this line will clearly not predict it well. A simple option would be to find a boundary after which all values of X result in 1 and before which all result in 0. However, measuring error in linear regression punishes outliers much more. For instance, if we want a score that is either 1 or 0, and our linear model predicts a score of 100, then the RMSE becomes $99^2$ even though we know that this point probably belongs to the category 1.
+
+Logistic regression fixes this problem by using the function:
+$$p(X) = \frac{e^{\beta_0+\beta_1X}}{1 + e^{\beta_0+\beta_1X}}$$
+
+This will create an S-shaped curve as you can see here:
+
+```{r sigmoid}
+sigmoid = function(x) {
+  1/(1+exp(-x))
+}
+
+x <- seq(-5,5,0.01)
+y <- seq(-100,100,0.01)
+par(mfrow=c(1,2))
+plot(x, sigmoid(x), lwd=.1)
+plot(y, sigmoid(y), lwd=.1)
+```
+
+You can also rearrange the above to get $\frac{p(X)}{1-p(X)} = e^{\beta_0+\beta_1X}$. In this fraction, the left side can take values between 0 and infinity, and a low or high value of this implies a low or high probability. We can see that the taking the log of both sides gives $log(\frac{p(X)}{1-p(X)}) = \beta_0+\beta_1X$, which ties back to linear regression and demonstrates how the weighted coefficients impact the model. This shows how logistic regression penalizes large values to something which is almost constant.
+
+# Logistic Regression R Code
+
+Here I will go over some code about logistic regression in R as well as interpreting results. For this example, I will revisit the Titanic Data we used at the beginning.
+
+## Loading Data
+
+These are usual functions for loading data.
+
+```{r loadData}
+filepath = "./Datasets/trainTitanic.csv"
+dfTitanic <- read.csv(filepath, header=TRUE)
+```
+
+## Cleaning and Removing Missing Data
+
+Recall that in previous modules we did many bits of initial analysis on data - and while this is a good idea in general to do - it is especially useful when looking for missing values or "NA" values. Here we will look for both missing values and how many unique values there are for different variables to see which variables can be used as categorical, and which cannot really be used. 
+
+```{r findUniqueMissing}
+missingNAVal <- sapply(dfTitanic, function(x) sum(is.na(x) | x == ""))
+uniqueVals <- sapply(dfTitanic, function(x) length(unique(x)))
+missingNAVal
+uniqueVals
+```
+
+We can see that Cabin has too many missing values, and so does Age. We also see that PassengerId, Name and Ticket have too many possible values. We know from before it is possible to create features out of Name so we will keep that, and we also know from logic that people who are young and healthy have a better chance of surviving, so we will keep those. The next steps are to choose the relevant columns from training and find a way to deal with Age.
+
+For this case, because we have many ages that are available, we can just fill in age using the average of the known ages. This will not actually affect the distribution of the age feature very much. We can also know that an age with decimal points is not real, in case we need to revert these changes. We will also remove the two rows where "Embarked" has a missing value, as it will not significantly impact the total number of rows. 
+
+All of these decisions have to be made when there are missing values, but usually can be justified by some form of field knowledge or otherwise should be stated upfront. 
+
+```{r missingVals}
+trainData <- subset(dfTitanic, select=c(2,3,5,6,7,8,10,12))
+
+trainData$Age[is.na(trainData$Age)] <- mean(trainData$Age, na.rm=TRUE)
+
+trainData <- trainData[trainData$Embarked != "",]
+rownames(data) <- NULL
+```
+
+## Splitting Data
+
+We will also (for now) just do a basic splitting of the data. You will be required to implement a cross validation properly later.
+
+```{r split}
+train <- trainData[1:800,]
+test <- trainData[801:889,]
+```
+
+## Glm function
+
+To plot a "generalized linear model", we can use the glm function. Note the "." means all columns not including the response (which in this case is Survived). In other words, "Survived ~ Age + Sex + Embarked + ..." is equivalent to "Surivived ~ ." This will look very similar to linear models in the past, but here there is an additional argument which specifices that we are doing logistic regression.
+
+```{r glm}
+model <- glm(Survived ~ ., family=binomial(link='logit'), data=train)
+summary(model)
+```
+
+## Interpreting Outputs
+
+Using similar ideas from above, we can immediately see that Sex, Pclass, Age and SibSp are the most statistically significant in that order while the others are clearly irrelevant. 
+
+There are ways to analyze the results using ANOVA tables; once again there are whole fields in statistical theory methods that involve understanding ANOVA, but I will try to give a tldr version here.
+
+The idea is to measure whether our features actually matter. In most cases, this means comparing a model with and without the new feature, and seeing if there is an impact on explaining the variation. In R, there is a built in anova function!
+
+```{r anova}
+anova(model, test="Chisq")
+```
+
+We see that the NULL deviance and residual deviance with features clearly is different, and we get a much smaller value with features. Also, we can see how little that residual deviance shrinks after the Age variable, and especially after the SibSp. 
+
+In this case, a larger Pr(>Chi) value indicates that the feature is not important (a model without it explains close to the same amount as a model with the feature). Unfortunately there is no $R^2$ value as there is in linear regressions, so this is the next easiest way to assess model correctness. 
+
+### Predictions
+
+We will now predict using the "predict" function. Remember that we split the data above for this!
+
+```{r Predictions}
+results <- predict(model, newdata=subset(test,select=c(2,3,4,5,6,7,8)), type='response')
+results <- ifelse(results > .5, 1, 0)
+
+error <- mean(results != test$Survived)
+print(paste('Accuracy', 1-error))
+```
+
+Note that since logistic regression does return a value, and we actually want it to return a classification, the "ifelse" is important to compare with the actual bucket value. One benefit to return a score between 0 and 1 is that we can change the ".5" boundary in some cases to better perform on a training/testing set. 
+
+In this example the accuracy is about 84%. This can be interpreted as good or bad depending on the situation. If you are flipping a coin, getting a model that can correctly predict the result 84% of the time would be outstanding. On the other hand, if you have a testing set where 90% of the outcomes are one way and 10% are the other way, you have a better chance for accuracy from just randomly guessing for the 90% side than from using this model. In our case, we can use our counts and filters to see the split:
+
+```{r isItAccurate?}
+table(test$Survived)
+```
+
+By some guesswork we can assume our model is pretty good, but it is usually a good idea to actually go in and check how easy it is to manually eliminate easy options, then re-assess. Once again, to understand the accuracy of the model it is good to read the research of experts in the field or people who know more about the data. 
+
+## False positives and negatives
+
+One more thing to note is false positives versus false negatives. In statistical theory these can also be called Type I vs Type II errors. False positives occur when something is indicated as true when it is infact false, and false negatives occur when something is indicated as false when it is infact true.  
+
+In a medical situation where a disease is not diagnosed (false negative) this is much worse than a false positive; you want them to diagnose if you have a problem. A false positive, on the other hand, can be horrible in the titanic situation (i.e you think someone has survived when in fact they haven't). So depending on the type of experiment you are doing, it is good to pick a model that minimizes one of the two errors. That is also another reason it is important to understand the type of error. 
+
+We can use a simple table function to demonstrate (remember the vertical axis is the first element and horizontal is the second element):
+
+```{r fPfN}
+table(test$Survived,results)
+```
+
+We see that in this case 5 passengers have been predicted to survive when they in fact did not, and 9 passengers have been predicted to not survive when in fact they did. 
+
+## Comparing to a linear model
+
+Here we will compare the above logistic model to a linear model, and then try and compare the results.
+
+```{r linearModelCompare}
+linModel <- lm(Survived ~ ., data=train)
+summary(linModel)
+
+results <- predict(linModel, newdata=subset(test,select=c(2,3,4,5,6,7,8)), type='response')
+results <- ifelse(results > .5, 1, 0)
+
+error <- mean(results != test$Survived)
+print(paste('Accuracy', 1-error))
+```
+
+## Summary
+
+We use logistic regression in situations where we want a score between 1 and 0, and often to classify points between two categories of data. Linear regression has an infinite possible number of values, and by nature each amount of error is penalized quadratically. Logistic regression uses a loss function and so large errors are penalized by a constant amount. It is easier to interpret the output of linear regression, but also for categories can give much more misleading error measures. 
+
+# Decision Trees
+
+Decision trees are a commonly used for a subset of machine learning called "supervised learning". This is a type of machine learning that involves mapping inputs to outputs based on example input-output pairs. Typically, this means making a function from "labelled training data" that can be used on on other examples. 
+
+## Example of Tree Use
+
+To illustrate decision trees, I will use a small example. Assume you are trying to predict which loans should be guranteed given someone's income. You are given there credit history, income, term, and personal information. Credit history is categorical (excellent, good, fair), income is continuous (i.e 80k per term), loan terms (3 years, 5 years, etc), personal info (age, reason, marital status etc). We want a system that can categorize loans as safe or risky given the above inputs. A decision tree will look at the available features and come up with ways to decide which combinations result in safe loans and risky loans. For example:
+
++ if credit is excellent 
+  + loan is safe
++ else if credit is fair +
+  + if term is longer than 5 years
+    + loan is safe
+  + else 
+    + loan is risky
++ else (credit poor)
+  + if income high
+    + if term shorter than 5 years
+      + risky
+    + else
+      + safe
+  + else (income low)
+    + risky
+    
+In other words:
++ 3 year loans with fair credit history are risky
++ 3 year loans with high income and poor credit history are risky
+
+So as you can see, we are going from an application (input $x_i$) and trying to output safe/unsafe. So as you can see, we need an algorithm that can translate these labelled examples to a tree function. To do this we first need to find out a metric for how we will decide the splits (i.e what variable results in what response or what variable requires what other variable). This is also known as a quality metric. 
+
+## Deciding Splits
+
+Quality metrics can include classification error which rangers from 0.0 to 1.0:
+$$ Error = \frac{numIncorrectPredictions}{numExamples} $$
+
+However, if we have to measure every possible tree to find the best one, there is an exponential amount of trees we have to test! A greedy algorithm will find a good tree and approximately minimize the classification error above.
+
+### Greedy Algorithm
+
++ Start with empty tree (all points "safe" vs "risky")
++ Pick a feature to split on (i.e "credit")
+  + Check ratio of responses in split ("safe" to "unsafe")
+  + If perfect predict response
+  + Else
+    + Build tree from that point (new feature) and recurse from feature picking step
+    
+But how to pick which feature is best to start splitting with? We can calculate the error on the first split for each ($\frac{mistakes}{dataPoints}$). Note we say the "correct" response is the majority response from that point. 
+
+So say from the root, splitting on term results in 22 correct and 18 incorrect, then our error is 0.45 (18/40). Say we split on Credit, and we get (correct/incorrect) as 9/0 for excellent credit, 9/4 for fair and 4/14 for poor, then our majorities are 9, 9, and 14 and therefore the error is ((4+4)/40) or 0.2.
+
+So to choose the first feature our algorithm is:
+
++ For each feature $h_i(x)$:
+  + Split M according to $h_i(x)$
+  + Compute the classification error split
++ Select feature $h_{*}(x)$ with lowest classification error
+
+That replaces the "picking" step above and saves some work so we recurse less times. But at what point should we stop recursing? We can stop for sure when all of the data is perfectly alloted, (i.e there is no remaining stump which has a split left). But what if we are out of features and there are still stumps that have a combination of safe and risky? Then you can just predict the majority element in those cases. So given input, we have to traverse the decision tree and choose the output that matches.
+
+What if we have more than 2 classes to output to though? For example, instead of just "safe" and "not safe" we have "safe", "risky" and "dangerous"? Same process but for three (i.e I will calculate error by using the majority element vs all non majority elements).
+
+What about elements that are not categorical (i.e income)? If we split on all different numerical values, it is bad because we might only have one data point for each. This will be an easy way to cause overfitting! Typically we will divide them into a threshold (i.e <50k is one way and >50k is another way). This should seem skeptical because it seems like finding this is the same method as using tables and filters! 
+
+## Finding best threshold for continuous variables
+
+To actually find the best threshold for numeric variables, we must first limit the places we can make a split. Note that between 2 consecutive points in our sample, regardless of where the split is the error will be the same. Therefore, we have a finite number of splits to consider (i.e the midpoints between every 2 consecutive values when the values are sorted). 
+
+Then the primitive algorithm which works is:
+
++ Sort the values of a feature (assume it has N values)
++ for (i in 1 to N-1)
+  + Compute error for split $$ t_i = (v_i + v_{i+1})/2 $$
++ return lowest error
+
+## Overfitting
+
+Of course, even though this method looks robust, here we can still be susceptible to overfitting. To understand that, first we can understand some of the parameters in decision trees that can be controlled. The first one is depth (i.e what height of tree do we want). 
+
+In some places like car companies or science research spaces, there can be hundreds of features which can be analyzed. Just stop and think for a second about how many things you may want to see when training a self driving car to stop at the right time (i.e from other cars, road signs, animals, people, saving gas). If our decision trees take advantage of every possible feature, it is possible to reduce the training error to nearly zero. Recall that a simple way to measure overfitting is to see if the training set is more accurate than the testing set, and clearly a training set with 0 error will probably do better than the testing set. Even if it is not, the result of a decision tree is a function which represents a decision boundary across the different variables! If the decision boundary is too complicated, this likely means it will have too much variance on real world results.
+
+Why does a deeper tree do better? Remember that in the above algorithm, we choose a new feature that reduces the overall classification error. This means at every layer of depth we are reducing the classification error. By the way, this is why it is good to have a cross validation method as well.
+
+This way, say 2 trees have similar classification error, we use the simpler tree when possible. How do we pick simpler trees? Stop it early before the tree becomes complex, or modify the trees once they are complete the simplify them in retrospect (this is known as pruning). 
+
+### Limiting Depth 
+
+To stop a tree early you can just limit the depth (i.e choose a max depth). There are a few methods for finding this limit:
++ Sometimes you can choose this value with cross validation, or otherwise you can choose it using some field knowledge or intuition.
++ Say there is no split which improves the classification error? This is a good place to stop the splitting and end the tree. Also, you can use a value $\epsilon$ and essentially stop recursing when error is not improving by more than it. However, sometimes a useless split is necessary to then execute a perfect split. 
++ You can choose a value N ("minimum") where after a split if there is less than N you stop splitting and end that line of recursion. 
+
+### Pruning
+
+Pruning is the idea of changing a learning algorithm after the learning algorithm has terminated. Therefore, you do not prematurely loose some advantages to a complicated tree. In this case, we will measure complexity using the number of leaf nodes. We again want to choose between too complex (overfitting) and too simple (useless). 
+
+For now, we can combine these ideas to get:
+
+Total cost = classification error + number leaf nodes
+
+We will rewrite this as:
+
+C(T) = error(T) + $\lambda$L(T)
+
+Therefore, our idea is to now look at each final split and see if replace the split by just a majority leaf node reduces the total cost. 
+
+#### Pruning Algorithm
+
++ Start at bottom of tree T (and apply below algorithm steps to each decision node M)
++ Algorithm(T,M)
+  + Find total cost of tree using cost equation
+  + See if smaller tree (cost of replacing split M with majority element) is smaller and recurse
+
+Note, we have not yet talked about the $\lambda$ above. This is generally agreed on before and called a tuning parameter. If the value of this is 0, we are looking at standard decision trees, while setting this value very high means we are looking for a balanced fit. Similarly, in between dictates how much we value this balance. 
+
+## Missing Data
+
+One more important point addressed in the regression section was handling missing data! Assume we do not know some things because a loan application came up false, or in the Titanic case somebody's information was unknown in some categories. We can either remove all skipped/missing value related rows (but this can really reduce the given data). We can also skip features with missing values (i.e remove "Term"). However, it will be bad if we lose some key traits because of skipping data.
+
+Another method typically used is called imputing. This usually means replacing missing data with some sort of average for continuous variables (median, mean) and for categorical data almost always the mode. 
+
+The final idea (which is intriguing) is training the algorithm to use missing data as an indicator. This means we will add an option to each split called "known or low" implying the data is not there. It is possible for the Titanic instance that everybody whose age was missing did not survive, and that is the kind of situation that can be handled well with this method. We can also add "unknown/missing" to one of the categories; for example in the loan predictor, the split on income can be >=50k or (< 50k and unknown). We can even decide which bucket to add unknown to by seeing which element works the best. 
+
+## Error Measuring
+
+To measure error in decision trees, most frequently we look at two metrics: Precision and Recall.
+
+Precision (fraction of good predictions which are actually good), which is the number of true positives divided by the total number of positives predicted. $$ precision = \frac{truePositives}{truePositives + falsePositives} $$
+
+Recall (fraction of positive data predicted positive) measures what proportion of false negatives existed. $$ recall = \frac{truePositives}{truePositives + falseNegatives} $$
+
+An optimistic model may have high recall and low precision - it predicts everything is positive. A pessimistic model has high precision and low recall, it thinks everything is negative except something that is absolutely certain. 
+
+# Decision Tree R Code
+
+In coding, the most commonly used method for implementing decision trees is known as a random forest. This algorithm essentially chooses random subsets of the data, learns a tree in each subset and then averages the predictions. This is must easier than boosting (below) and also takes advantages of the ability for computers to work in parallel. It does end up giving a higher error than pure decision trees, but because of speed is still used.
+
+First we must load the randomForest package:
+
+```{r randomForestPackage}
+#install.packages("randomForest")
+```
+
+I have implemented a random forest model on Titanic code below, with comments to explain what is going on:
+
+```{r randomForest}
+library(randomForest)
+
+# Loading Data
+filepath = "./Datasets/trainTitanic.csv"
+
+# Save in DataFrame
+dfTitanic <- read.csv(filepath, header=TRUE)
+
+# Find relevant missing and unique values
+missingNAVal <- sapply(dfTitanic, function(x) sum(is.na(x) | x == ""))
+uniqueVals <- sapply(dfTitanic, function(x) length(unique(x)))
+
+# Find subset of titanic data
+trainData <- subset(dfTitanic, select=c(2,3,5,6,7,8,10,12))
+
+# Replace missing age values
+trainData$Age[is.na(trainData$Age)] <- mean(trainData$Age, na.rm=TRUE)
+
+# Remove rows where embarked is not there
+trainData <- trainData[trainData$Embarked != "",]
+rownames(data) <- NULL
+
+# Simple Split
+train <- trainData[1:800,]
+test <- trainData[801:889,]
+
+# Fitting a random forest (remember we are not going to use Ticket, PassengerId, )
+fit <- randomForest(as.factor(Survived) ~ ., data=train, importance=TRUE, ntree=2000)
+```
+
+We can now use the "importance" argument to see which features were valued the most!
+
+```{r importance}
+varImpPlot(fit)
+```
+
+Now we can see how well it predicts!
+
+```{r predictions}
+results <- predict(fit, newdata=subset(test,select=c(2,3,4,5,6,7,8)), type='response')
+#results <- ifelse(results > .5, 1, 0)
+```
+
+Finally, we can actually measure accuracy.
+
+```{r measureAccuracy}
+resultsTable <- table(test$Survived,results)
+sum(diag(resultsTable))/sum(resultsTable)
+```
+
+We see that in this case 6 passengers have been predicted to survive when they in fact did not, and 8 passengers have been predicted to not survive when in fact they did. 
+
+This does not look like much improvement, but we can demonstrate by comparing results on training data as well to compare further.
+
+```{r trainingAccuracy}
+resultsForest <- predict(fit, newdata=subset(train,select=c(2,3,4,5,6,7,8)), type='response')
+
+table(train$Survived,resultsForest)
+
+resultsTable <- table(train$Survived,resultsForest)
+print(paste('Accuracy Forest:', sum(diag(resultsTable))/sum(resultsTable)))
+
+
+resultsLogistic <- predict(model, newdata=subset(train,select=c(2,3,4,5,6,7,8)), type='response')
+results <- ifelse(resultsLogistic > .5, 1, 0)
+
+error <- mean(results != train$Survived)
+print(paste('Accuracy Logistic', 1-error))
+```
+
+Now you can see a big difference!
+Of course this is not a rigorous CV - so it is a good idea to do a rigorous CV to double check this. 
+
+# Task!
+
+Use a randomForest to predict the species of flower in the Iris dataset. Do a rigorous CV!
+
+```{r IrisData}
+data("iris")
+```
+
+## Extra Topic: Boosting
+
+We know that weak classifiers (smaller and simpler trees or regression) is the fastest and most efficient way to model relationships, but suffers because it is often not accurate enough. This triggers the question, can we combine many weak classifiers to return a strong classifier?
+
+The method to combine these is known as boosting, and this is the most simple and widely used industry approach; it also wins most Kaggle competitions!
+
+First it is important to describe an "Ensemble classifier" which is a function of classifiers:
+
+$$ F(x_i) = sign(w_1f_1(x_i) + w_2f_2(x_i) + w_if_i(x_i)) $$
+
+where the different functions (f) are all separate small classifiers. We are basically predicting whether or not the sum of these is positive or negative. Each function can be simple i.e "if income >100k then safe else risky" and "if credit history good then safe else risky". 
+
+Boosting is the idea of implementing classifiers where this ensemble method does not do well! This is the idea of tuning the weights above to give a classifier that predicts better in situations where it is doing worse. 
+
+The most common algorithm is AdaBoost:
+
++ Give each point in the training set the same weight $\alpha_i = 1/N$ where N is the number of points.
++ for t=1,...,T
+  + Learn f_t(x) with weights $\alpha_i$
+  + compute coefficients $\hat{w}_t$
++ Predict with the sign of the sum of weight*fn
+
+There are many more details of this algorithm online.

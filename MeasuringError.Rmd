@@ -1,0 +1,151 @@
+---
+title: "MultipleRegression_MeasuringError"
+author: "Aditya Maheshwari"
+date: '2018-07-04'
+output: html_document
+---
+
+# Introduction 
+
+This notebook will cover Error Checking Methods and Multiple Regression. 
+
+The topics are arranged in a more jumbled fashion, but they are all required to learn about and understand the value of classification and clustering. Prior notebooks to this were "Tables and Graphs" and "Simple Linear Regression". Those two prior notebooks covered many topics that are expanded on here. Also, many of the topics in previous notebooks and this one do not extensively cover proofs and hard math; this is mainly to give a big picture idea and sample of implementation. It is a good idea to look for more details on the topics.  
+
+The notebook will start with splitting data, cross validation, and overfitting in order to give an overview of how to test the validity of a model. This is then followed by multiple linear regression, and then logistic regression, which are powerful methods used by many machine learning algorithms today. 
+
+The tasks and code in the notebook require the Facebook_metrics dataset which was analyzed in the paper "Predicting social media performance metrics and evaluation of theimpact on brand building: A data mining approach" by Moro, Rita and Vala, as well as some built in datasets from the R programming language. 
+
+# Splitting Data, Cross Validation and Overfitting
+
+Before understanding new types of regression, we will begin with splitting data and cross validation methods. Splitting data needed when there is a limited amount of data available. The simple idea is to divide the available data into a training and testing set using some form of sampling, and then train a model using the training set and test it on the testing set.
+
+## Splitting Data
+
+Splitting data is very important because you do not want to train a model that is too specific towards the given sample, and becomes bad at predicting future examples. Also, the testing set can simulate what it will be like to predict values from the real world. Another very important question is how to control the ratio of the splits, and this often depends on how much data is available. In an instance where there is not much data, one will use much more data to train a model and much less to test, while a situation with more data means you can have a bigger pool to test on. Of course, the bigger a testing set can be, the more rigorously the model can be tested. However, a training set that is too small can also result in a useless model.
+
+## Cross Validation
+
+Typically a good way to measure error is to use a method known as k-fold cross validation. This means we divide the dataset into into k parts, and then train the model using k-1 parts and test it on the k-th part. We then repeat this method by isolating a different one of the k parts as our testing set and traning again; the final error can be an average of all of the given errors.
+
+Here is a more visual representation (say we have a dataset and we are doing 3-fold cross validation):
+
+Dataset   A   B   C
+Run1      Tr  Tr  Tst
+Run2      Tr  Tst Tr
+Run3      Tst Tr  Tr
+
++ A, B, C are 3 partitions of the above data
++ In Run1 A+B are the training set and the model trained using A+B will be used for C
++ In Run2 A+C are training, in Run3 B+C are training.
+
+## Overfitting
+
+Overfitting often occurs when a model works on training sets so well it becomes affected when dealing with real sets/testing sets. A very common reason for overfitting is that elements in the training sample do not accurately mimic the real world. Another common reason is that the split is wrong or happens to have many outliers. An easy way to detect overfitting during model building is when the training set error is (significantly) less than the testing set error. Since the data should have been split randomly, this should not be the case for a good model. When using k-fold cross validation, the testing set error should be less than training set for most of the folds. 
+
+One thing that can get overlooked is that if the data is too "spaced out" (i.e there is not enough data to account for different situations), then the whole model might just be bad. In the previous notebook we discussed correlation and how if the data is not linear, a linear model might not work. Therefore, before checking for overfitting it is good to make sure the data can actually be modelled using the variety of summaries or measures that are easy to test (plots, correlations, filters), and then also ensuring there is enough data available. 
+
+## Code
+
+Here is a trivial way to do cross validation on a linear model in R. I will use the "swiss" dataset and will build a model measuring the relationship between Education and Catholic, and do 5-fold cross validation. There are certainly packages in R and in other languages that can help with this!
+
+```{r CV}
+folds <- 5
+data <- swiss
+
+CVfn <- function(data,folds = 5) {
+  rowsPerSplit <- ceiling(nrow(data)/folds)
+  lastSplit <- nrow(data) - rowsPerSplit*(folds-1)
+
+  splits <- c(rep(c(rowsPerSplit),(folds-1)),lastSplit)
+  CVresults <- c()
+
+  counter <- 1
+  for (i in seq(1,folds,1)) {
+    testNum <- seq(counter,sum(splits[1:i]))
+    train <- data[-testNum,]
+    test <- data[testNum,]
+    counter <- counter+splits[i]
+    
+    lModel <- lm(Education ~ Catholic, data=train)
+    predictions <- predict(lModel, test)
+    actuals_preds <- data.frame(cbind(actuals=test$Education, predicteds=predictions))
+    CVresults[i] <- sum((actuals_preds$predicteds - actuals_preds$actuals) ** 2)
+    
+  }
+  return(CVresults)
+}
+
+CVresults <- CVfn(swiss)
+
+mean(CVresults)
+CVresults
+```
+
+# Tasks
+
+## Initial Task - Understanding Cross Validation Code
+
+Add comments to the CV code in the first block (one comment above each line explaining what is happening in the code). The key is to keep the comment as short as possible while still accurately describing what is going on. Remember that to add a comment you use the "#" symbol - and that if you can improve the code too it is a good idea to do so. 
+
+## Implementing CV
+
+Then for your simple linear regression assignment from the previous day, run a CV on the dataset for each model and find out which one has the lowest average error. 
+
+## Running Multiple Regression
+
+Finally, run a multiple regression using the full data (i.e all the features), and compare the results you get with simple linear regression and the CV above. Then remove the features which do not hold significance and build a new model, and see if the result from prediction is much worse in the CV.
+
+## New Dataset Multiple Regression
+
+Download the Facebook Dataset and load the data into R from the chat. Analyze it using the various regression tools to predict how many likes a page gets based on the inputs, and present findings. Specifically, you will (by yourself) split up the data and try to estimate one of the fields (i.e Total Likes, Total Interactions, LifetimeImpressions) etc using any number of other fields below. Use the simple split below for training/testing.
+
+Below I have put into bullet points what each column means, and code to load the data. I have also included a very weak example where I predict the number of "Total.Interactions" using "comments", "likes" and "shares".
+
+### Data Field Descriptions
+
++ [1] "TotalLikes" - total number of likes
++ [2] "Type" - type of post
++ [3] "Category" - numeric code
++ [4] "PostMonth" - month of post
++ [5] "PostWeekday" - weekday of post
++ [6] "PostHour" - post hour
++ [7] "Paid" - paid or not (categorical)
++ [8] "LifetimePostTotalReach" - number of unique users who saw it
++ [9] "LifetimePostTotalImpressions" - number times post displayed
++ [10] "LifetimeEngagedUsers" - number unique users clicked anywhere in post
++ [11] "LifetimePostConsumers" - number people who clicked anywhere
++ [12] "LifetimePostConsumptions" - number of clicks anywhere
++ [13] "LifetimePostImpressionsbypeoplewhohavelikedyourPage" - page displayed to people who have liked
++ [14] "Lifetime.Post.reach.by.people.who.like.your.Page" - unique vieweres who have liked page
++ [15] "Lifetime.People.who.have.liked.your.Page.and.engaged.with.your.post" - number of people who have liked and clicked on post
++ [16] "comment" - number comments
++ [17] "like" - number likes
++ [18] "share" - number shares
++ [19] "Total.Interactions" - sum of likes, comments, and shares
+
+### Starter Code
+
+Remember to change the filepath to match where you downloaded the data on your computer. 
+
+```{r loadData}
+filepath <- "./Datasets/dataset_Facebook.csv"
+facebookData <- read.csv(filepath, header=TRUE, sep=";")
+
+trainRatio <- 0.8
+
+splitInd <- sample(seq(1,nrow(facebookData)),trainRatio*nrow(facebookData))
+
+fbTrain <- facebookData[splitInd,]
+fbTest <- facebookData[-splitInd,]
+  
+myModel <- lm(Total.Interactions ~ comment+like+share, fbTrain)
+
+summary(myModel)
+
+results <- predict(myModel, fbTest)
+
+RSS <- sum((fbTest$Total.Interactions - results)**2)
+
+# Will be close to 0 as the fit should be perfect.
+```
+

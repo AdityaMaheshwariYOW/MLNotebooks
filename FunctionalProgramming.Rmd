@@ -1,0 +1,521 @@
+---
+title: "Functional Programming Introduction"
+author: "Aditya Maheshwari"
+date: '2018-07-14'
+output: html_document
+---
+
+# Functional Programming Introduction
+
+R is a functional programming language - meaning it primarily provides tools for creating and manipulating functions. In R, functions can do everything vectors can do (be stored in variables, created inside other functions, be passed as arguments to a function, and be returned by another function). The concept behind functional programming is to create small, easy-to-understand building blocks, combine them into complex structures, and then apply them with details about how each minor block works. Functional programming is especially important when dealing with data because it is less likely to cause expensive bugs.
+
+# 1. Examples
+
+This thinking seems obvious, but it will likely require a large change in the thought process of coding especially for hackers, and also add extra time when designing the code; the results are well worth it! This section will start with two quick examples. 
+
+### Example: Fixing NA Values
+
+Assume a dataset is given where all NA values take the value -99, and the desired outcome is to replace -99 with NA. The immediate reaction to fixing this problem might be to copy-paste code to modify each column.
+
+```{r replaceNA}
+# Generate a sample dataset
+set.seed(1014)
+df <- data.frame(replicate(6, sample(c(1:10, -99), 6, rep = TRUE)))
+names(df) <- letters[1:6]
+df
+##    a  b c   d   e f
+## 1  1  6 1   5 -99 1
+## 2 10  4 4 -99   9 3
+## 3  7  9 5   4   1 4
+## 4  2  9 3   8   6 8
+## 5  1 10 5   9   8 6
+## 6  6  2 1   3   8 5
+
+# initial solution
+df$a[df$a == -99] <- NA
+df$b[df$b == -99] <- NA
+df$c[df$c == -99] <- NA
+df$d[df$d == -99] <- NA
+df$e[df$e == -99] <- NA
+df$f[df$f == -99] <- NA
+```
+
+However, copy-paste easily results in errors, and also is not very flexible with change. For example, say all NA values are < -99 (similar to how if you use a number bigger than MAX in C it ends up being a random number), suddenly the task becomes too complicated. 
+
+To prevent these issues, we use a functional programming philosohpy "don't repeat yourself" or "every piece of knowledge must have a single, unambiguous, authoritative representation within a system" (which in this case means no two lines should do a function too similar). Furthermore, by reducing this duplication, lines of code are saved and reading code is easier. 
+
+Here we can write functional programming code that first fixes the values in a single vector:
+
+```{r fixMissing}  
+fix_missing <- function(x) {
+  x[x == -99] <- NA
+  x
+}
+
+df$a <- fix_missing(df$a)
+df$b <- fix_missing(df$b)
+df$c <- fix_missing(df$c)
+df$d <- fix_missing(df$d)
+df$e <- fix_missing(df$e)
+df$f <- fix_missing(df$f)
+```
+
+Still, we are repeating too much! Also, assuming the value is -98 instead of -99 we cannot really fix it. So it is likely that less mistakes will be made but this is not foolproof. Now we must combine fix_missing with a function that can apply to all of the outputs. In this case, that function is "lapply"!
+
+lapply() takes x (vector/list), f (function), and a collection of arguments for f(). It applies the function to each element of list and returns a new list. 
+Below is lapply() written as a for loop. In R, the in built function is written in C for performance reasons, but the algorithm is almost the same.
+
+```{r lapplyLoop}
+#out <- vector("list", length(x))
+#for (i in seq_along(x)) {
+#  out[[i]] <- f(x[[i]], ...)
+#}
+
+```
+
+We can use lapply() because each column of the dataframe is a vector. The only trick is that we need to convert the output of lapply back to a dataframe because lapply usually returns a list. The way to do this to force the results of lapply into a dataframe (df[])... the square brackets separate it from a normal variable as we are returning each lapply output list element as a new column in the dataframe.
+
+```{r addlapply}
+fix_missing <- function(x) {
+  x[x == -99] <- NA
+  x
+}
+df[] <- lapply(df, fix_missing)
+
+# Say we want to force the results for just 5 columns of the dataframe, we use:
+df[1:5] <- lapply(df[1:5], fix_missing)
+```
+
+Clearly, the given code is much better than the original copy paste, and much easier to read as well. This is called functional programming because we have created two distinct functions, one which applies to each column and one which fixes missing values, and combine them to make a complex function. 
+
+But what if we have different values than -99 to be converted to NA? First instinct might be to copy paste... :(
+
+```{r distinctValues}
+fix_missing_99 <- function(x) {
+  x[x == -99] <- NA
+  x
+}
+
+fix_missing_999 <- function(x) {
+  x[x == -999] <- NA
+  x
+}
+
+fix_missing_9999 <- function(x) {
+  x[x == -999] <- NA
+  x
+}
+```
+
+But again, it's too easy to make mistakes when copying a lot. Instead, use a concept called closures: functions that create and return other functions. 
+
+Closures allow the creation of functions using templates. Remember that R returns a variable if it just appears on a line by itself. So below, it will return the function built inside missing_fixer. Then we can save the returned function to a variable, and apply that function to the data as below. Finally, we can add an "na.value" argument just to combine everything into one function.
+
+```{r betterDistinctValues}
+missing_fixer <- function(na_value) {
+  function(x) {
+    x[x == na_value] <- NA
+    x
+  }
+}
+
+fix_missing_99 <- missing_fixer(-99)
+fix_missing_999 <- missing_fixer(-999)
+
+fix_missing_99(c(-99, -999))
+## [1]   NA -999
+fix_missing_999(c(-99, -999))
+## [1] -99  NA
+
+fix_missing <- function(x, na.value) {
+  x[x == na.value] <- NA
+  x
+}
+```
+
+### Example: Creating Summaries
+
+Assume now that we have cleaned data, we want numerical summaries for each variable. Again, the brutal solution is as follows:
+
+```{r brutalCode}
+mean(df$a)
+median(df$a)
+sd(df$a)
+mad(df$a)
+IQR(df$a)
+
+mean(df$b)
+median(df$b)
+sd(df$b)
+mad(df$b)
+IQR(df$b)
+```
+
+A slightly better solution is to write a summary function and apply it to each column, but that still involves lots of duplicating!
+
+```{r slightlyBetter}
+summary <- function(x) {
+  c(mean(x, na.rm=TRUE), median(x, na.rm=TRUE), sd(x, na.rm=TRUE), mad(x, na.rm=TRUE), IQR(x, na.rm=TRUE))
+}
+
+lapply(df, summary)
+
+# accounting for NA
+summary <- function(x) {
+  c(mean(x, na.rm = TRUE), median(x, na.rm = TRUE),sd(x, na.rm = TRUE), mad(x, na.rm = TRUE), IQR(x, na.rm = TRUE))
+}
+```
+
+It looks silly because we are calling all functions in the vector with "x" and "na.rm=TRUE". This means we can make mistakes while copying AND we have to change in many places when copying. However, we can be smart and store functions in list (remember becuase R is functional we can do what we do with a variable for a function). Then we get much cleaner code ... and in fact we can even switch this in the future so the user can input which functions they want to summarize.
+
+```{r functionsInLists}
+summary <- function(x) {
+  funs <- c(mean, median, sd, mad, IQR)
+  lapply(funs, function(f) f(x, na.rm = TRUE))
+}
+
+# User defined
+summary <- function(x, funs = c(mean, median, sd, mad, IQR)) {
+  lapply(funs, function(f) f(x, na.rm=TRUE))
+}
+```
+
+# 2. Anonymous Functions
+
+Anonymous functions are functions that are not named. Inside lapply, often an anonymous function is used; and above in missing_fixer an anonymous function is returned. Here we will use the mtcars dataset to demonstrate.
+
+```{r anonFunctions}
+# apply function to cars dataset - note all functions inside are not named
+lapply(mtcars, function(x) length(unique(x)))
+
+Filter(function(x) !is.numeric(x), mtcars)
+
+integrate(function(x) sin(x) ^ 2, 0, pi)
+```
+
+Anonymous functions can be called without giving a name, but it's very important to ensure the right function is being called (and not a potentially invalid function inside the anonymous function). Here are some examples... note that since the function does not have a name, it is literally called with brackets and no name. For example say we have:
+
++ named function: f <- function(x) x + 3 
+  + Call function with: f(3) 
+  + result is 6
++ anonymous function: (function(x) x + 3) 
+  + Call function with: (3) 
+  + result is also 6
+
+That is why anonymous functions are also called ghost functions. You can call anonymous functions with named arguments, but that probably means you need a name for your anonymous function. 
+
+```{r callingCorrectFunctions}
+# This will throw an error because 3 is not a valid function
+## (Note that "3" is not a valid function.)
+#--------------------INCORRECT ANONYMOUS FUNCTION----------#
+# function(x) 3()
+
+## function(x) 3()
+# With appropriate parenthesis, the function is called:
+(function(x) 3)()
+## [1] 3
+
+# So this anonymous function syntax
+(function(x) x + 3)(10)
+## [1] 13
+
+# behaves exactly the same as
+f <- function(x) x + 3
+f(10)
+## [1] 13
+```
+
+# 3. Closures and Mutable States
+
+Anonymous functions help create smaller functions that do not need to be named, but can also be used to create closures: functions written by other functions. Closures get their name because they sit in the environment of the parent function and can use all parent functions variables. This means within a function we can have a parent level that controls operations and a child level that does the actual work.
+
+Here is an example using closures to generate power functions in which a parent function creates child functions. 
+
+```{r closureExample}
+power <- function(exponent) {
+  function(x) {
+    x ^ exponent
+  }
+}
+
+square <- power(2)
+square(2)
+## [1] 4
+square(4)
+## [1] 16
+cube <- power(3)
+cube(2)
+## [1] 8
+cube(4)
+## [1] 64
+```
+
+Note that the inner function dissapeared after the function was run. This may seem odd because it feels like every function in R is a closure. And it is! All functions remember where they were created (but usually they are in the global environment). This section just adds a name for it. 
+
+Closures also help to define mutable states. Note that in R, often when changing the value of a variable you are creating a copy of the variable and then changing the value of the copy. Unless the variable is defined in the global environment, and then accessed by a function that can reach the global environment, specific changes have to be made to actually change it's value. For example in the code below, you will see what is required to make the global variable "x" change.
+
+```{r changeX}
+x <- 3
+
+attempt <- function(y) {
+  y + 1
+}
+
+# even if we pass in "x", "x" does not change
+print("MyFn does not change x permanently (see below)")
+res <- attempt(x)
+res
+x
+res == x
+
+attempt2 <- function(y) {
+  x <- 4
+  y + 1
+}
+
+# now the function has changed x
+print ("Even now x has not changed the it's value (see below)")
+res2 <- attempt2(x) 
+res2
+x
+res2 == x
+
+# in a function we must use the double arrow to force the function to search global environments
+success <- function(y) {
+  x <<- 4
+  x
+}
+
+print ("the double arrow succeeds in changing x")
+res3 <- success(x)
+res3
+x
+res3 == x
+```
+
+# 4. Lists of Functions
+
+In R, functions can be stored in lists which makes it easier to work with groups of functions. This is similar to how a data frame makes it easier to work with related vectors. An example of this is to compare different ways of calculating the mean. 
+
+```{r meanCalculators}
+compute_mean <- list(
+  base = function(x) mean(x),
+  sum = function(x) sum(x) / length(x),
+  manual = function(x) {
+    total <- 0
+    n <- length(x)
+    for (i in seq_along(x)) {
+      total <- total + x[i] / n
+    }
+    total
+  }
+)
+```
+
+The function can then be called by extracting it from the list the same way an element is extracted from the list. Functions can be called by number/name from a list ([[listIndex]], [["name"]], $name). To call all of the functions we can use an lapply type of function. The last example is much more abstract... see if you can figure it out. 
+
+```{r callingFunctionsFromList}
+# Calling specific functions from the list
+x <- runif(1e5)
+
+system.time(compute_mean$base(x))
+system.time(compute_mean[[2]](x))
+system.time(compute_mean[["manual"]](x))
+
+# Calling all functions 
+lapply(compute_mean, function(f) f(x))
+
+call_fun <- function(f, ...) f(...)
+lapply(compute_mean, call_fun, x)
+
+# To time each function, we can combine lapply() and system.time():
+lapply(compute_mean, function(f) system.time(f(x)))
+```
+
+Lists can also summarise objects, for example by storing summary functions in a list and then running them all with lapply(). What about using summary functions to remove missing values? The first approach is to make a list of anonymous functions, and the second is to use an lapply on the list of functions.
+
+```{r summaryLists}  
+x <- 1:10
+
+funs <- list(
+  sum = sum,
+  mean = mean,
+  median = median
+)
+
+lapply(funs, function(f) f(x))
+
+# new list
+funs2 <- list(
+  sum = function(x, ...) sum(x, ..., na.rm = TRUE),
+  mean = function(x, ...) mean(x, ..., na.rm = TRUE),
+  median = function(x, ...) median(x, ..., na.rm = TRUE)
+)
+
+lapply(funs2, function(f) f(x))
+
+# less duplication
+  
+  lapply(funs, function(f) f(x, na.rm = TRUE))
+```
+
+# 5. Long example: numerical integration
+
+Now a quick and more complicated example is building a set of functions to approximate the area under a curve (integration) using midpoint and trapezoid rules. Midpoint approximates the area with rectangles while trapezoid methods use trapezoids. Each implementation takes the function that needs to be integrated, f. as well as a range of values (a to b) to integrate over. 
+
+The first example will integrate the sin(x) function (sin curve) from 0 to $\pi$ as the precise answer is 2 so it is easy to check. 
+
+```{r integrationFns}
+midpoint <- function(f, a, b) {
+  (b - a) * f((a + b) / 2)
+}
+
+trapezoid <- function(f, a, b) {
+  (b - a) / 2 * (f(a) + f(b))
+}
+
+midpoint(sin, 0, pi)
+
+trapezoid(sin, 0, pi)
+```
+
+Neither function does a good job... so we will break the range into smaller peices and integrate each one using the same rules. 
+
+```{r breakingRegions}
+# break for medians
+midpoint_composite <- function(f, a, b, n = 10) {
+  points <- seq(a, b, length = n + 1)
+  h <- (b - a) / n
+
+  area <- 0
+  for (i in seq_len(n)) {
+    area <- area + h * f((points[i] + points[i + 1]) / 2)
+  }
+  area
+}
+
+# break for trapezoids
+trapezoid_composite <- function(f, a, b, n = 10) {
+  points <- seq(a, b, length = n + 1)
+  h <- (b - a) / n
+  
+  area <- 0
+  for (i in seq_len(n)) {
+    area <- area + h / 2 * (f(points[i]) + f(points[i + 1]))
+  }
+  area
+}
+
+midpoint_composite(sin, 0, pi, n = 10)
+midpoint_composite(sin, 0, pi, n = 100)
+trapezoid_composite(sin, 0, pi, n = 10)
+trapezoid_composite(sin, 0, pi, n = 100)
+```
+
+Right away there is a way to make these functions more general, and because we are practising functional programming this is a good idea. Try to see the relation yourselves. Note that we have already defined a midpoint and trapezoid function above. 
+
+```{r genericFunctions}
+composite <- function(f, a, b, n = 10, rule) {
+  points <- seq(a, b, length = n + 1)
+    
+  area <- 0
+  for (i in seq_len(n)) {
+    area <- area + rule(f, points[i], points[i + 1])
+  }
+  
+  area
+}
+
+composite(sin, 0, pi, n = 10, rule = midpoint)
+composite(sin, 0, pi, n = 10, rule = trapezoid)
+```
+
+Currently we take in the function to integrate and teh rules. Now we can adapt this method to add better rules over smaller ranges. 
+
+```{r betterRules}
+simpson <- function(f, a, b) {
+  (b - a) / 6 * (f(a) + 4 * f((a + b) / 2) + f(b))
+}
+
+boole <- function(f, a, b) {
+  pos <- function(i) a + i * (b - a) / 4
+  fi <- function(i) f(pos(i))
+  
+  (b - a) / 90 * (7 * fi(0) + 32 * fi(1) + 12 * fi(2) + 32 * fi(3) + 7 * fi(4))
+}
+
+composite(sin, 0, pi, n = 10, rule = simpson)
+composite(sin, 0, pi, n = 10, rule = boole)
+```
+
+We can even generalize this rules creating method!
+
+```{r newton_cotes}
+newton_cotes <- function(coef, open = FALSE) {
+  n <- length(coef) + open
+
+  function(f, a, b) {
+    pos <- function(i) a + i * (b - a) / n
+    points <- pos(seq.int(0, length(coef) - 1))
+    
+    (b - a) / sum(coef) * sum(f(points) * coef)
+  }
+}
+
+boole <- newton_cotes(c(7, 32, 12, 32, 7))
+milne <- newton_cotes(c(2, -1, 2), open = TRUE)
+composite(sin, 0, pi, n = 10, rule = milne)
+```
+The next step would be to create smaller boxes where the curve is more steep - and will not be explored here. However, it should be quite clear that the use of functional programming has made the code for a problem that could be challenging much more readable. 
+
+# 6. Functionals
+
+A closure takes a vector and returns a function, while a functional takes a function as an argument and returns a vector. A functional that has already been used a lot is the lapply function. That one takes a function as the second argument, and returns the first argument (list) with the function entered on each item. Functionals can replace for loops. Plus, for loops are ambiguous because without looking in the loop it is unclear what is going on; a functional has most of it's information up front. Functionals are also great for data manipulation tasks such as splitting, applying functions to subsets, and then combining results, and great for working with mathematical functions. The only drawback is they can be slower in practise, but because they work well in parallel, in the future they end up much faster. 
+
+Lapply is a good example of a functional replacing a for loop. Here is the implementation of lapply using a for loop in r (the real lapply is actually written in C). 
+
+```{r lapplyImplementation}
+lapply2 <- function(x, f, ...) {
+  out <- vector("list", length(x))
+  for (i in seq_along(x)) {
+    out[[i]] <- f(x[[i]], ...)
+  }
+  out
+}
+```
+
+lapply() can also be used on columns of a data frame (i.e calculate the mean of each).
+
+```{r applyingToColumns}
+newdf <- lapply(mtcars,sum)
+newdf[] <- lapply(mtcars,sum)
+```
+
+# 7. Methods for Creating Loops
+
+There are three basic ways to loop over a vector:
+
++ loop over the elements: for (x in xs)
++ loop over the numeric indices: for (i in seq_along(xs))
++ loop over the names: for (nm in names(xs))
+
+The first one is slow because it usually involves replacing the actual elements with new versions and therefore bigger amounts of data have to be moved each time. The second one usually means creating space for the output before hand and filling it in later which is far more efficient. The third one works the same way as the second but with names. 
+
+There are also three ways to use lapply():
+
++ lapply(xs, function(x) {})
++ lapply(seq_along(xs), function(i) {})
++ lapply(names(xs), function(nm) {})
+
+The first way works, the second and third way keeps track of the position of the element being applied to. 
+
+# 8. Using Functionals
+
+When using functionals, it is important to identify where you are repeating the same pattern again and again and then creating a function instead. There are other forms of lapply which work on vectors, matrices, arrays (sapply, vapply) and even loop over multiple data structures (mapply and Map). Here are some examples from the mtcars dataset.
+
+# 9. Advanced Links
+
+Here are some links for using C programs in R to improve performance. These are advanced and might be added as notes later.
+
+http://adv-r.had.co.nz/Rcpp.html
+http://adv-r.had.co.nz/C-interface.html

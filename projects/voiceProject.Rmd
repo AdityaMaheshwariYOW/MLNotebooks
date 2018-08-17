@@ -1,0 +1,64 @@
+---
+title: "SpeechProject"
+author: "Aditya Maheshwari"
+date: '2018-08-10'
+output: html_document
+---
+
+# Introduction
+
+The goal is to authenticate a device or open a lock using voice recognition. For now we are fixing a phrase to be used as the password ("open the door"). We will use 50 different voices just to demonstrate a proof of concept. The function created will check two things:
+
++ 1: The phrase spoken matches the actual password phrase.
+
+For that we will use the google speech to text wrapped in a package called googleLanguageR. This requires a mono wav file which for now we are converting with audacity, so it will take an extra step. 
+
+```{r speechToText}
+#install.packages("googleLanguageR")
+library(googleLanguageR)
+
+filepathTrack <- "~/LocalDocs/MLNotebooks/h.wav"
+filepathAuth <- "~/LocalDocs/MLNotebooks/speechToText-b4ef08c4fe96.json"
+gl_auth(filepathAuth)
+gl_speech(filepathTrack, sampleRateHertz=48000)
+```
+
++ 2: The frequency and tone of the voice matches that of the password
+
+For that we will use the tuneR function to translate the voice into a vector of frequencies. From there we will use a combination of machine learning and statistical measures to determine how far the voice is from the authenticated voice. 
+
+```{r frequencies}
+#install.packages("seewave")
+library(seewave)
+
+filepathOutput <- "~/LocalDocs/MLNotebooks/txtTrack.txt"
+myTrack<-readWave(filepathTrack)
+
+export(myTrack, f=48000, filename=filepathOutput)
+
+newDf <- read.delim(filepathOutput)
+colnames(newDf) <- c("frequency")
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   mode <- uniqv[which.max(tabulate(match(v, uniqv)))]
+   print(length(v[v == mode]))
+   mode
+}
+
+getmodes <- function(v, aRange = 1:5) {
+    checkV <- v
+    modes <- c()
+    for (i in aRange) {
+        modes <- c(modes, getmode(checkV))
+        checkV <- checkV[checkV != modes[i]]
+    }
+    modes
+}
+
+# newVec <- apply(vec, FUN = mean(vec[]))
+findMeans <- function(v) {
+  apply(v[
+}
+
+```

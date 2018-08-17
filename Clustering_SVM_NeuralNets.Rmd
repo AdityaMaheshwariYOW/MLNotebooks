@@ -1,0 +1,371 @@
+---
+title: "NeuralNets"
+author: "Aditya Maheshwari"
+date: '2018-07-12'
+output: html_document
+---
+
+# Introduction
+
+Here we will cover focus on clustering algorithms. There are many now, but in this notebook we will focus on supervised machine learning and related clustering algorithms. One of the motivation for clustering is to find related items. You have already covered a variant of this in the locally sensitive hashing sections. 
+
+In a machine learning context, we want to give features for a query point and features of all other data points, and find the point that is the closest to our input point. This can be used for similar images or documents or just about anything else where we want similar objects. 
+
+The algorithms we will look at include:
+
++ Nearest neighbor search
+  + KD-trees
+  + Locally Sensitive Hashing
++ k-means and MapReduce
+  + Minimize sum of squares distance to cluster centers
+  + Assigns data points to clusters (specifically unsupervised learning tasks)
++ Mixture Models
+
+## Applications of Clustering
+
++ Grouping Documents
++ Grouping Images (Phone, Facebook)
++ Web Search Results
++ Patients by Medical Condition
++ Products on Amazon
++ Similar Neighbourhoods (Price of home)
++ Similar Neighbourhoods (Crimes)
+
+# k-Nearest Neighbour Search
+
+Nearest neighbour involves calculating the distance from each of the other objects to the existing object, and returning the k nearest. 
+
+## Document Retrieval: TF-IDF
+
+TF-IDF emphasizes important words (appearing in the document) but do not appear in most other documents. Term Frequency (TF) is the word counts, and Inverse Document Frequency (IDF) is the log(#docs/(1+#docs using word)). We can use any sort of distance to do this: Euclidean, Mahalanobis, rank-based, correlation-based, Manhattan...
+
+## KD Trees
+
+We can also scale a k-NN search by storing the data in a KD-tree. A KD tree can organize the various points into axis aligned boxes. Then we can split the data using a tree as above, and continue separating the data. If we find a point which is closer (a new NN), we can reshuffle the tree. We can also use pruning as we have before to remove parts of the tree that do not have the nearest neighbour. 
+
+Complexity: Size (2N-1 nodes, log(N) depth, O(nlogn) construction), finding NN (O(log(N)) -> O(N)).
+
++ To find nearest neighbour: N queries
++ Brute force 1-NN: O($N^2$)
++ kd-trees: O(Nlog(N)) -> O($N^2$): You can save a lot for a large N
+
+This is kind of cool but not super practical to implement and bad in multiple decisions.
+
+## Locality Sensitive Hashing for NN
+
+This was covered at the start of the course, but I will quickly refresh. The best resource for this is available here in the "Finding Similar Items" chapter: http://mmds.org/#book
+
+# Clustering
+
+We want to move from finding the most similar items to finding groups of items that are all similar. This will be a method involving unsupervised learning, which means you are not given labels beforehand. This makes the task more interesting, becuase we are trying to uncover the cluster structure from inputs alone. Clusters are defined by a center and a shape/spread. You can have many shapes of clusters!
+
+## k-means
+
+We will say the "score" of a point is the distance from it to a cluster center. 
+
+Algorithm
++ 0. Initialize cluster centers: $u_1$, $u_2$, ..., $u_k$
++ 1. Assign observations to cluster centers: $z_i$ <- $min_j||u_j - {x_i}||_2^2$
++ 2. Revise centers as mean of assigned observations: $u_j$ = $\frac{1}{n_j}\sum_{i:z_i=j}x_i$ i.e all observations i so that $z_i$ is observation i in cluster j.
++ 3. Repeat 1 and 2 until convergence
+
+Best is to choose the starting cluster centers at random! But how do we know which clusters are the best? 
+
+Again, we are trying to minimize the sum of the squared distances, similar to regression. Sum of squared distances: $$\sum_{j=1}^k\sum_{i:z_i=j}||\mu_j - x_i||_2^2$$
+This is the sum of squared distances in a cluster for each cluster (1,..,k). Also, this sum will likely decrease for more clusters... but if we get to the point where we have an equivalent number of clusters as data points, then this algorithm is pointless!
+
+### MapReduce to Speed Up K-means
+
+Mapreduce is a standard tool which is used to take advantage of parallel processing. Given many machines, the idea is to split data across machines, share the operations across the machines, and then combine the results again to present solutions. To explain mapReduce, I will start with an example:
+
+Say you are hosting a party for your classmates and decided to cook pasta for dinner. You call in 3 friends to help you with cooking. The task involves chopping vegetables, cooking and garnishing. We can chop vegetables using map-reduce! Imagine vegetables are the input, friends can be like computing nodes, and the finally chopped vegetables are the outcome. Each friend will have to chop and weigh an assortment of vegetables. In the end, we need bowls where each has a separate vegetable along with the total weight of the vegetables (onions in one, tomatoes in another and so on). 
+
+MAP: We can start by assigning each friend a random number of vegetables. They each must chop their subset of the total and measure the weight of that subset (each individual separately). They cannot mix vegetables. In the end, each friend will have a list stating their vegetables and the weight. 
+
+GROUP: Now, we have key+value (vegetable+weight) pairs, and we will put each type of vegetable in a different part of the room. Then in each part we will have different bowls of different weights of the same vegetables.
+
+REDUCE: Now, each collection of small bowls will be transferred into a larger bowl with the sum added together. 
+
+So to abstract this, we need a master node to command the other nodes, and then the nodes will each receive a subset of the problem, map the solution to their subset (resulting in a key-value pair), shuffle among other groups to join keys together, and then reduce the results into one value per key. 
+
+This can also be used to scale K-means. For instance:
+
++ Classifying (assign observations to closest cluster) can be the map step
+  + This works because we do not need other points to figure out best distance for one point
++ Averaging over all points can be the reducing step
+  + Now that each point is assigned to a key, we can then find the average for each key in parallel too. 
+  
+# R implementation
+
+## First Example - cars data
+
+We will use a cars dataset to demonstrate k-means clustering.
+
+```{r cars}
+head(mtcars)
+
+# scale the data using medians and mad statistic (mad is the median absolute deviation)
+cars.use <- scale(mtcars, center=apply(mtcars,2,median), scale=apply(mtcars,2,mad))
+
+# distance, clusters
+cars.dist <- dist(cars.use)
+cars.hclust <- hclust(cars.dist)
+
+# Shows a cluster tree
+plot(cars.hclust,labels=cars$Car,main='Default from hclust')
+
+# 3 Group Cluster
+groups.3 = cutree(cars.hclust,3)
+table(groups.3)
+sapply(unique(groups.3),function(g)rownames(mtcars)[groups.3 == g])
+```
+
+## Second Example - iris data
+
+```{r iris}
+# Just to visualize data
+library(ggplot2)
+
+# Plotting the data
+head(iris)
+ggplot(iris, aes(Petal.Length, Petal.Width, color=Species)) + geom_point()
+
+# Clustering
+irisCluster <- kmeans(iris[,3:4], 3, nstart=20)
+irisCluster
+```
+
+Here we have grouped the data into 3 clusters because there are 3 species. The argument nstart=20 specifies that R will try 20 starting assignments and select one that ends with lowest cluster variation. 
+
+```{r clusterComparison}
+table(irisCluster$cluster, iris$Species)
+```
+
+We can see which cluster the various flowers were grouped into and what kind of errors happened as well!
+
+Now to plot the clusters:
+```{r plotIrisCluster}
+irisCluster$cluster <- as.factor(irisCluster$cluster)
+ggplot(iris, aes(Petal.Length, Petal.Width, color = irisCluster$cluster)) + geom_point()
+```
+
+# Support Vector Machines
+
+Prior to Neural Networks, the most widely used classification methods were support vector machines. This is a method that can separate data using hyperplanes (clustering), and is especially effective when the data does not follow a known distribution. Similar to clustering, with only two values which are far apart such a line is easy to calculate. However, picking an optimal boundary involves choosing a line that leaves the largest margin for error while still correctly classifying the objects. To illustruate this idea, first I will create some random data.
+
+```{r data}
+x=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
+y=c(3,4,5,4,8,10,10,11,14,20,23,24,32,34,35,37,42,48,53,60)
+ 
+#Create a data frame of the data
+train=data.frame(x,y)
+ 
+#Let’s see how our data looks like. For this we use the plot function
+ 
+#Plot the dataset
+plot(train,pch=16)
+```
+
+Assume we want to approximate the above. We will probably start with linear regression. 
+
+```{r linRegression}
+#Linear regression
+model <- lm(y ~ x, train)
+ 
+#Plot the model using abline
+plot(train,pch=16)
+abline(model, col="skyblue1")
+```
+
+We can see that linear regression does ok. Now we will attempt the same idea using an svm. For this, we need a package called "e1071" in R.
+
+```{r SVM}
+#SVM
+#install.packages("e1071")
+library(e1071)
+ 
+#Fit a model. The function syntax is very similar to lm function
+model_svm <- svm(y ~ x , train)
+ 
+#Use the predictions on the data
+pred <- predict(model_svm, train)
+ 
+ 
+#Plot the predictions and the plot to see our model fit
+plot(train,pch=16)
+abline(model, col="skyblue1")
+points(train$x, pred, col = "chartreuse4", pch=4)
+```
+
+We could calculate the RSS to check this, but it is quite clear our points follow the line much more closely. Now let us go deeper into the svm function to see specifically what is happening. In this particular case we will look at 51 different epsilons and 8 different costs for a total of 408 models. 
+
+```{r SVM2}
+svm_tune <- tune(svm,y ~ x, data = train,
+            ranges = list(epsilon = seq(0,.5,0.01), cost=2^(2:9))
+)
+print(svm_tune)
+```
+
+Our svm tune stores information about the best svm model! As you can tell, it used 10-fold cross validation, and a big advantage in tuning is that we now have the best version of this model saved. 
+
+```{r bestModel}
+#The best model
+best_mod <- svm_tune$best.model
+best_mod_pred <- predict(best_mod, train) 
+ 
+error_best_mod <- train$y - best_mod_pred 
+ 
+# this value can be different on your computer
+# because the tune method randomly shuffles the data
+best_mod_RMSE <- sqrt(mean(error_best_mod^2)) # 1.290738
+
+plot(svm_tune)
+```
+
+The plot of the performance shows you where this model performed the best as a heatmap, so we can even tune this further (in the range of 0 to 0.1). Now when we re-plot the points with the best model, we can see how much they have improved (original in green, new in red).
+
+```{r bestModelPlot}
+plot(train,pch=16)
+abline(model, col="skyblue1")
+points(train$x, pred, col = "chartreuse4", pch=4)
+points(train$x, best_mod_pred, col = "firebrick", pch=4)
+```
+
+So we can clearly see the difference! Keep in mind this data only involved one feature. For a more advanced dataset, this method can work even better!
+
+The big advantage in this method compared to regression is the ability to eliminate noisyness. This also works well on data that is being streamed!
+
+# Neural Networks
+
+Neural networks are statistical models built from studying the brain. In the brain there are many neurons which act together to help the body act and process new information. Based on a signal from one neuron, the second in command responds. Similarly, in a neural network the output of one neuron can be the input of another. Neural networks contain an input layer, a hidden layer and an output layer. The difference between that and a different model framework is that in the hidden layer we do not see observed values. 
+
+There are many pros and cons to neural networks. The main pro is that these algorithms perform better than any other machine learning algorithm that exists currently. The con is that the more complicated a neural network becomes, the harder and harder it is to explain what the model is actually doing. 
+
+We will start by implementing support vector machines more for completeness. This is a much more advanced math topic so the focus below will be on implementation.
+
+Neural Networks run on an algorithm known as backpropogation: https://en.wikipedia.org/wiki/Backpropagation.
+
+We will jump right into implementing these functions, and use the MASS dataset. This is a dataset about housing values in the suburbs of Boston. We will try to predict the median value of homes given the other available variables (this is called "medv").
+
+```{r MASSdata}
+library(MASS)
+data <- Boston
+
+apply(data,2,function(x) sum(is.na(x)))
+```
+
+We will do the usual methods to isolate training and testing data, and then run a quick linear model just to get a comparison.
+
+```{r quickLm}
+index <- sample(1:nrow(data),round(0.75*nrow(data)))
+train <- data[index,]
+test <- data[-index,]
+lm.fit <- glm(medv~., data=train)
+summary(lm.fit)
+pr.lm <- predict(lm.fit,test)
+MSE.lm <- sum((pr.lm - test$medv)^2)/nrow(test)
+```
+
+One drawback to neural networks are that the data needs to be prepared for the model to work. The first step is to normalize the data. This means scaling the data into an interval ([0,1] or [-1,1] for example). This is just so that the neural net converges, and the "hidden layer" does not get too large. 
+
+```{r scaleData}
+maxs <- apply(data,2,max)
+mins <- apply(data,2,min)
+
+scaled <- as.data.frame(scale(data, center = mins, scale = maxs - mins))
+
+train_ <- scaled[index,]
+test_ <- scaled[-index,]
+```
+
+Usually, one hidden layer is enough to solve the predictino problem. Soemtimes even one hidden layer is not necessary. The number of neurons is typically 2/3 of the input size, but usually some sort of test is run to find these numbers. 
+```{r implementNeuralNet}
+#install.packages("neuralnet")
+library(neuralnet)
+
+n <- names(train_)
+f <- as.formula(paste("medv ~", paste(n[!n %in% "medv"], collapse = " + ")))
+nn <- neuralnet(f,data=train_,hidden=c(5,3),linear.output=T)
+```
+
+Note how the formula was put together first and then pasted into the neuralnet. We can even plot the neuralnet!!
+
+```{r plotNeuralNet}
+plot(nn)
+```
+
+Now we will attempt some predictions. First though, we must scale back to our original values.
+
+```{r predictNeuralNets}
+pr.nn <- compute(nn,test_[,1:13])
+
+pr.nn_ <- pr.nn$net.result*(max(data$medv)-min(data$medv))+min(data$medv)
+test.r <- (test_$medv)*(max(data$medv)-min(data$medv))+min(data$medv)
+
+MSE.nn <- sum((test.r - pr.nn_)^2)/nrow(test_)
+```
+
+Comparing to the linear model... we see that the neural net has almost 3 times less residual error. Of course, this is just based on the split, so it's good to do a CV.
+
+```{r lm+NN}
+print(paste(MSE.lm,MSE.nn))
+
+par(mfrow=c(1,2))
+
+plot(test$medv,pr.nn_,col='red',main='Real vs predicted NN',pch=18,cex=0.7)
+abline(0,1,lwd=2)
+legend('bottomright',legend='NN',pch=18,col='red', bty='n')
+
+plot(test$medv,pr.lm,col='blue',main='Real vs predicted lm',pch=18, cex=0.7)
+abline(0,1,lwd=2)
+legend('bottomright',legend='LM',pch=18,col='blue', bty='n', cex=.95)
+```
+
+We can compare them on the same plot as well.
+
+```{r NNlmPlot}
+plot(test$medv,pr.nn_,col='red',main='Real vs predicted NN',pch=18,cex=0.7)
+points(test$medv,pr.lm,col='blue',pch=18,cex=0.7)
+abline(0,1,lwd=2)
+legend('bottomright',legend=c('NN','LM'),pch=18,col=c('red','blue'))
+```
+
+For the cross validation, we can use the "boot" library to save some time.
+
+```{r CVLM}
+library(boot)
+set.seed(200)
+lm.fit <- glm(medv~.,data=data)
+cv.glm(data,lm.fit,K=10)$delta[1]
+```
+
+For the neuralNetwork, we will do a 90/10 split, and measure the error.
+
+```{r NNCV}
+set.seed(450)
+cv.error <- NULL
+k <- 10
+
+library(plyr) 
+pbar <- create_progress_bar('text')
+pbar$init(k)
+
+for(i in 1:k){
+    index <- sample(1:nrow(data),round(0.9*nrow(data)))
+    train.cv <- scaled[index,]
+    test.cv <- scaled[-index,]
+    
+    nn <- neuralnet(f,data=train.cv,hidden=c(5,2),linear.output=T)
+    
+    pr.nn <- compute(nn,test.cv[,1:13])
+    pr.nn <- pr.nn$net.result*(max(data$medv)-min(data$medv))+min(data$medv)
+    
+    test.cv.r <- (test.cv$medv)*(max(data$medv)-min(data$medv))+min(data$medv)
+    
+    cv.error[i] <- sum((test.cv.r - pr.nn)^2)/nrow(test.cv)
+    
+    pbar$step()
+}
+
+mean(cv.error)
+```

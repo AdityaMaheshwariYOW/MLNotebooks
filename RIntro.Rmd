@@ -1,0 +1,495 @@
+---
+title: "R Introduction"
+author: "Aditya Maheshwari"
+date: '2018-07-14'
+output: html_document
+---
+
+# Introduction
+
+R is a statistical language that is excellent for experimenting and testing different ideas. It is built to efficiently handle vectors and quickly build models from more complex math ideas, as well as read in and apply functions to many forms of data. R Studio provides an IDE for R, and R Markdown allows for an easy way to create reports and integrate code to display work. 
+
+This notebook is a light introduction to R, and in particular will cover some basic usage of RStudio, how an R Markdown file works, and overview the R programming language. In the end, there are 10 relatively simple questions that allow for some use of all the features covered here. 
+
+The full set of notebooks has 8 parts including:
+
++ 1. Introduction (current notebook)
++ 2. Tables and Graphs
++ 3. Linear Regression
++ 4. Logistic Regression and Measuring Error
++ 5. Classification
++ 6. SVM
++ 7. Clustering
++ 8. Neural Networks
++ 0. (Extra Notebook For Efficient Programming Techniques in R) Functional Programming
+
+# 1. RStudio
+
+RStudio is an IDE for R, and has many features which allow it to be effective for experimenting. The four major components are the 4 sections of the IDE, and will be referred to here as Help/Plots, Environment, Scripts, and Console. 
+
+## Help/Plots
+
+The help/plots section appears in the lower right corner of the RStudio window, and is used to display images/plots, browse files, and provide a help page for functions/packages. Whenever any image (plot/graph) is generated in an R script, the plot will be shows in this help/plots tab. Similarly, whenever the "help()" command is called on a function (i.e help(plot)) the output will be shown in this tab as well. Run the below for an example.
+
+```{r help}
+help(plot)
+```
+
+## Environment
+
+The environment tab keeps track of all variables which are currently stored in R memory in the given working instance. This includes all data structures and variables. It appears in the top right of the RStudio window. History shows a history of commands as well. To clear the space in environment or reset the working environment, use the command as follows. 
+
+```{r clearEnvironment}
+rm(list=ls())
+```
+
+Now, to see a variable "a" with value 3 be added to the environment, run the following and see the update:
+
+```{r addA}
+a <- 3
+```
+
+## Scripts Section
+
+The scripts section is used to write R scripts, build R markdown files, and even build web applications using "Shiny". There are many other types of R based files that can be created too. R scripts are scripts that run and return R code. This section is also used to build R Markdown documents, and details about R Markdown Documents will be discussed in the RMarkdown section. The scripts section is located in the top left part of RStudio. 
+
+## Console
+
+The console is an interactive place to run R commands. When an R Script is run, it is typically passed through the console. In the console, you can even enter math commands such as "2+3" and get an immediate result. The console is located in the bottom left part of the screen. 
+
+The console also typically has a terminal window, which can take linux commands to navigate through the directory of your computer. This will not be used extensively in these notebooks, but is still useful to know about.
+
+# 2. RMarkdown
+
+R Markdown is a file type that allows a user to quickly build a static webpage or report, and integrate analysis along with actual code and output. All of the notebooks in this set are written with R Markdown. In R Markdown it is easy to both display the code used as well as the results, and also add in text to analyze to results on the same page. 
+
+## Code Blocks
+
+To create a code block, use the symbols " \`\`\` " followed by an opening curly parenthesis "{", the language being used (in this case "R"), and then the name of the code block. After the code segment is finished, the block is closed with another " \`\`\` " symbol set. For instance, to build code written in the R language with the name "firstCodeBlock" in an R Markdown document, the sequence of commands is:
+
+\`\`\`{r firstCodeBlock}
+
+print("my first code block")
+
+\`\`\`
+
+This will look as follows in the actual html/pdf file:
+```{r firstCodeBlock}
+print("my first code block")
+```
+
+To run a codeblock from inside the RMarkdown file, click the small "play" icon in the top right corner.
+
+Similarly,to include a plot,the following code is used in an R code block:
+
+```{r pressure, echo=TRUE}
+plot(pressure)
+```
+
+Out of the many additional arguments that can be added to a code block, one of them is the "echo" flag. If "echo" is set to true, then the code block will appear in the RMarkdown Document, otherwise if it is false the block will not appear. The default value is true, so the first two blocks of code appeared along with their output, but in the next one resetting the "echo" flag using the line "```{r pressure2, echo=FALSE}```" will no longer show the code and just plot the graph:
+
+```{r pressure2, echo=FALSE}
+plot(pressure)
+```
+
+## Knitting
+
+The "Knit" command is located in the command bar, and can generate an html file with the RMarkdown content and results. This can then be saved as a PDF or attached to a webpage as a static page. 
+
+# 3. Basic R Usage
+
+This section covers assignments and printing, math operations, and functions. First, though, it is important to emphasize that comments in R are done with the "#" symbol. This way, if an R script reads a "#" symbol the remainder of the line will be a comment, unless the "#" symbol is between quotation marks. In the code below, "#" are used to indicate a new idea within the code.
+
+## Assignment Operator and Printing
+
+R has 2 methods for assigning a value to a variable:
+
+  1. "<-": a <- 3
+  2. "=": a = 3
+
+Both provide essentially the same functionality, but it is recommended to use "<-". The assignment operator is also used for storing a model or function or data frame or vector, and so it is very important.
+
+To print a value, either you can use the "print()" function, or you can just place the value on a line on it's own. For instance, to print the variable a defined above, one can use:
+
+  1. a
+  2. print(a)
+  
+Note that print("a") will print the letter "a". Also, assigning a new value to an existing name will overwrite that name. 
+
+Below are some examples in code:
+
+```{r assignments}
+a <- 3
+b <- 5
+a
+b
+a <- 2
+b <- 6
+print(a)
+print(b)
+```
+
+## Math Operations
+
+R can handle all of the standard math operations such as addition, subtraction, division, multiplication, exponents, modulo (+, -, /, *, ^, %%, ) and all standard comparisons such as equal, greater than, less than, and, or, not, exclusive or (==, >, <, &, |, !, xor). It can even handle "set" commands such as intersect, union, setdiff, setequal (using the names given), but these will be explored more in future notebooks. 
+
+Below with code and comments there is a short illustration of how to run math commands. It's also easy to store results from operations into variables. 
+
+```{r allOps}
+# math Operations
+a <- 2
+b <- 4
+2 + 3 # add
+3 - 1 # subtract
+a * 2 # multiply
+b / 2 # divide
+b %% a # modulo (remainder)
+a ^ b # exponents
+a ** b # also exponents
+
+# storing results
+print("storing results")
+c <- a ** b
+c
+d <- b %% a
+d
+e <- c * d
+a <- e
+
+# comparisons
+a < b
+a != b
+e != a
+```
+
+### Questions
+QUESTION: What value will "a" hold?
+
+## Functions
+
+R has both many inbuilt functions, and an easy way for a user to develop their own functions. All functions are abstract, meaning you do not need to specify a return type and input type unlike many other languages. Functions are saved the same way a variable is saved, and therefore can also be called the way a variable is called. Simply inputting a functions name in R gives you an idea of what the function does and how.
+
+For a function named "hello" which takes in a string "input" and returns the string "hello input", the syntax is:
+
+```{r helloFunction}
+hello <- function(input) {
+  print(paste("hello", input))
+}
+```
+
+Even though the function entered needed a string, writing string explicitly was not required. This is both an advantage and disadvantage; while it is easier to write functions and make them general purpose, sometimes they will behave unexpectadly without warning the user!
+
+Note, "paste" is an existing function in R which takes a list of inputs and returns them concatenated separated by spaces. To get an idea of how the backend of "paste" looks, type the function name (paste).
+
+```{r pasteFn}
+paste
+```
+
+To call a function, use the function name and any inputs in parenthesis. Note R can also support default arguments, so if the above function is rewritten as follows, this function can be called with or without an argument. Usually it is good to use default arguments to help the user and also immediately tell if something went wrong.
+
+```{r defArgs}
+hello <- function(input="nobody") {
+  print(paste("hello", input))
+}
+# default
+hello()
+
+# new
+hello("harry")
+hello("potter")
+```
+
+### Help Function
+
+The most important function for practising, and least important for production is "help()". You can use the help function along with any function name to see how a function works. For instance, to learn more about paste: 
+
+```{r helpPaste}
+help(paste)
+```
+
+TASK: Use the help command on paste to change the function above so it prints the inputted words without any spaces between them (i.e an input of "harry" would result in the output "helloharry" instead of "hello harry").
+
+Another method to get help is to add a question mark before the command being searched. For example:
+
+```{r questionPaste}
+?paste
+```
+
+# 4. Basic Data Structures
+
+In R, the basic data structures are vectors, lists, matrices, and data frames. Typically, data structures are organized by whether they are homogeneous or heterogeneous (all elements have the same type versus all elements have different types) and what their dimension is (1d, 2d, nd). To classify the four types:
++ Vectors and matrices are homogenous while lists and dataframes are heterogenous. 
++ Vectors and Lists are 1d while Matrices and Data Frames are 2d
++ There is an array structure which is nd but is not important for now.
+
+## Vectors
+
+Vectors are one of the more unique and powerful data types in R. Vectors are 1 dimensional and homogeneous (all their elements are of the same type). These resemble a vector in linear algebra. R is often used in statistics because it has the ability to do operations on vectors quickly. This also allows much of the code to avoid loops and repetitive functions, as subsetting/aggregating and applying operations to all elements of a vector can be done with more efficient commands. 
+
+A slightly important subtlety to note is that R does not have "0 dimension" variables the way most languages do. That means the above definition ("a <- 3") is actually a vector of length 1 and not an object that only holds one value. Vectors are initialized with the "c()" function and use comma's to separate places, so a length one vector is defined with "a <- c(3)", and a multi-length vector with "b <- c(1,2,3)". 
+
+```{r defineVectors}
+a <- c(3)
+aPrime <- 3
+a == aPrime
+b <- c(1,2,3)
+a
+b
+```
+
+Note that { a <- c(1, "2", 3) } will not work while { a <- c("1","2","3") } will work. 
+
+Vectors can also be nested, so c(1,c(2,c(3,4))) is equivalent to c(1,2,3,4).
+
+```{r nestedVectors}
+c(1,2,3,4) == c(1,c(2,c(3,4)))
+```
+
+### Subsetting Items
+
+To choose items from a vector, the square bracket "[" can be used. Vectors start counting at index 1 (contrary to many features in CS), and so choosing the second item from vector "b" above will be done with b[2]. If an index is chosen that does not exist, R will return "NA".
+
+```{r chooseIndex}
+# returns 2nd value of b
+b[2]
+# a has only one value so returns NA
+a[2]
+```
+
+Vectors can also subset with conditions, i.e selecting all vectors with value greater than 2 in b above:
+
+```{r smartSubset}
+b[b>2]
+```
+
+Note we can also do math operations on vectors, and this can lead to interesting results when the vectors do not have the same length!
+
+```{r vectorMath}
+c <- c(3,4,5)
+a + c
+a + b
+a * b
+c / b
+```
+
+## Lists
+
+Lists are similar to vectors except their arguments can be of mixed types (including other lists). Lists are built using the "list()" command, and different arguments are different inputs. For example the following is a list composed:
+1) a vector of 3 numbers
+2) one character
+3) one character
+4) a 2 character vector
+5) a nested list of 3 elements, each of which is a number
+
+```{r genList}
+x <- list(1:3, "a","b", c("c", "d"), list(1,2,3))
+x
+```
+
+To select specific elements from the larger list, a double square bracket "[[]]" is used. For example, each element of the above list can be stored into a separate vector and then a new list can be created by combining those vectors:
+
+```{r storeList}
+a <- x[[1]]
+b <- x[[2]]
+c <- x[[3]]
+d <- x[[4]]
+e <- x[[5]]
+a
+b
+c
+d
+e
+y <- list(a,b,c,d,e)
+```
+
+## Matrices
+
+Matrices are built using the "matrix()" function. These resemble the matrices from linear algebra. They only store one type, and typically are used in applications to help with calculations. 
+
+```{r matrices}
+myMatrix <- matrix(1:15, nrow=5, ncol=3)
+myMatrix
+```
+
+To choose an element of the matrix, use a comma in the square bracket selectors (representing row and column) i.e to choose the 2nd row and 3rd column: matrix[2,3]. To isolate just the 2nd row or 3rd column, use: matrix[2,] or matrix[,3]. 
+
+Below is an example on the "myMatrix" object buit above.
+
+```{r selectMatrixElement}
+myMatrix[2,3]
+myMatrix[2,]
+myMatrix[,3]
+```
+
+## Data Frames
+
+Data Frames are very commonly used to store data in R, and help make analysis much easier. These are essentially tables. They can be created with the "data.frame()" command, combined with "cbind" and "rbind", and then specific columns can be selected by name with the "$" symbol, and rows with the row indices in square brackets ("[1:3,]" or "[c(1,3,5,7),]"). 
+
+```{r dataFrames}
+# build frame
+df <- data.frame(x=1:4, y=c("a","b","c","d"), stringsAsFactors = FALSE)
+
+# add column
+col <- c(4,6,8,10)
+df <- cbind(df, col)
+
+# add row
+row <- c("a", "b", "c")
+rbind(df, row)
+
+# name columns
+colnames(df) <- c("col1", "col2", "col3")
+
+# return first column
+df$col1
+
+# return second row
+df[2,]
+
+# return second through fourth row
+df[2:4,]
+```
+
+# 5. Statistical Features
+
+R has many statistical features concerning random variables, summaries, and plotting. These will be developed in more depth in future notebooks, but the basics of random variables will be shown here.  
+
+## Plotting
+
+Plotting two variables can be done with the "plot" function. For example, in the built cars package, these are commands for plotting speed and stopping distance of cars as follows:
+
+```{r plotCars}
+plot(cars$speed, cars$dist, main="SpeedvsDist", xlab = "dist", ylab = "speed")
+```
+
+Note that the main argument specifies the main title of the graph, and xlab and ylab specify the x axis and y axis labels.
+
+## Random Variables
+
+R can generate random variables using rnorm, qnorm, pnorm, or dnorm. Typically generating random variables on a normal distribution with mean and standard deviation is done with rnorm. The following generates 50 random variables with mean 0 and standard deviation 1 and stores the results in the variable "rda". It is a good idea to look up qnorm, pnorm and dnorm just for future reference. 
+
+```{r genVars}
+set.seed(100)
+rda <- rnorm(50, 0, 1)
+rda
+```
+
+Note, for testing purposes R also is able to fix the random sequence using the "set.seed()" command. This means that the numbers will be generated randomly, but in a repeatable way depending on the seed. This will still simulate randomness but fix the results to be the same. Often, in a situation involving randomness it is good to set a seed so that results can be tested in a reproducible way. 
+
+## Loading Libraries
+
+Another very important part of R is installing and loading packages. This allows a user to quickly run many standard functions that do not come pre-built in R. 
+
+To install a package, the command is "install.packages()" with package name entered as a string (i.e "packagename"). For multiple packages, the arguments are separated by commas. For instance, to load the packages "dplyr" which is excellent for filtering data, and "ggplot2" which is excellent for building advanced plots, use the command "install.packages("dplyr", "ggplot2")". Note, once a package is installed the contents stay once the R session closes, so it does not need to be reinstalled again. 
+
+To load the functions, the command is "library()". This has to be called every time R is re-opened. This runs on one package at a time. Note that the package name gets entered directly and not as a string. To load the two above use the following commands:
+
+```{r loadPackages}
+#install.packages("dplyr", "ggplot2")
+library(dplyr)
+library(ggplot2)
+```
+
+Good style when building a notebook involves commenting out the install line (similar to above) so the user is aware which packages to download. It is then good to put all the library commands in a block right away so the notebook runs smoothly. 
+
+The install line will break a notebook in the knitting step if it is not commented out because it affects the backend.
+
+# 6. Assignment Questions
+
+Here are some questions to work on the basics from above.
+
+1. Randomly generate 100 numbers with a mean 0 and standard deviation 1 and store these numbers in a vector called "two".
+
+```{r q1}
+two <- rnorm(100,0,1)
+```
+
+2. What is the expected mean of the generated numbers (or expected value of each of the generated numbers) and what is the actual mean [HINT: use the mean() function]? Is the mean or median closer to zero?
+
+```{r q2}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+3. Write a function which takes in numbers x, y and z and returns x randomly generated numbers with mean y and std deviation z.
+
+```{r q3}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+4. Write a function which takes in a vector and returns the larger of the mean and median.
+
+```{r q4}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+5. Generate 1000 numbers with a mean 0 and stdev 1, and find how many of them are greater than 0.2 using subsets. Store these as a vector named "six"
+
+```{r q5}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+6. Multiply the vectors "six" by the vector "two" and store results in "tricky" - what is the length of the result (hint: use length() function) and why is there a warning?
+
+```{r q6}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+7. Install the "housingData" package and store the "fipsCounty" data into a data frame. Which state appears the most times?
+
+```{r q7}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+8. Load the housing data into a dataframe. Which state has the most houses sold, and which state has the highest average difference between list and selling price?
+
+```{r q8}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+9. Plot a graph of list and selling price.
+
+```{r q9}
+# code below
+#-------------------------
+
+
+#------------------------
+```
+
+10. Write a function that finds the mode of a given vectors. 
+
+```{r q10}
+# code below
+#-------------------------
+
+
+#------------------------
+```

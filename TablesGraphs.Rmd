@@ -1,0 +1,267 @@
+---
+title: "Week1 - Tables Graphs"
+author: "Aditya Maheshwari"
+date: '2018-06-24'
+output: html_document
+---
+
+# Introduction
+
+This notebook explores methods for visualizing and analyzing data in R using tables and graphs. The library used is called tidyverse, which is the standard for doing simple visualizations (and some complicated ones) in R. When there is not much data or the audience only is looking for overviews and summary information, graphs and tables are usually enough to get a point across. This notebook will use the Titanic Dataset from Kaggle as a starting point, and then do a "fun" challenge with Gapminder data. 
+
+The sections of this are:
+- Reading and Cleaning Data
+- Plotting Data
+- Summary Functions
+- Problems
+
+# Important Packages and Link to Reference Book
+
+The two important packages inside tidyverse (which is a set of packages) are "dplyr" and "ggplot2".
+
+```{r packages}
+#install.packages("tidyverse")
+#install.packages("dplyr", "ggplot2", "magrittr")
+
+library(tidyverse)
+```
+
+The tidyverse book (filtering plotting and more): http://r4ds.had.co.nz/introduction.html
+
+# Reading and Cleaning Data
+
+Data can come from many sources - a csv works for smaller sized data while maybe an avro file (serialized) with a schema can work for larger amounts of data. R has many functions for reading external data and writing data from R to other softwares. Usually it is best to look them up for specific cases, but in many cases read.csv() and write.csv() are the more important ones. Use the help command to learn more about them.
+
+Another very common problem with data is that it does not always come in a form that is easy to analyze. That is why it is important to reshuffle and filter and clean the data to meet relevant requirements. R is not the best language to actually clean data with - especially compared to languages that allow a user to easily open and modify file contents (C++, Python etc) are good. Also, there are specific programs for specific types of files (i.e Excel is good for xlsx and csv or Tableau is good for twb). 
+
+There is no real scientific method for cleaning data or trying to decode it so it can be read into R smoothly, which unfortunately can make that task very frustrating. However, starting with a clean dataset and seeing some results will hopefully be motivating enough to emphasize spending the time in the future to clean data! (Most in class small assignments will be done with clean data, but independent or class projects etc are likely to have some mess).
+
+In this notebook the example used is Titanic data, which gives information about different passengers on the Titanic ship and whether or not the passengers survived. Below is an example of using the read csv function to read the titanic data into a dataframe. 
+
+The data can be downloaded here:
+https://www.kaggle.com/c/titanic/data
+
+Be sure to change "filepath" to match the path of the titanic data file on the computer this code is being run on.
+
+```{r readData}
+# Change filepath to match where you downloaded
+filePathTrain <- "./Datasets/trainTitanic.csv"
+filePathTest <- "./Datasets/testTitanic.csv"
+
+# Save into dataframes
+dfTrain <- as.data.frame(read.csv(filePathTrain, header=TRUE))
+#dfTest <- as.data.frame(read.csv(filePathTest, header=TRUE))
+```
+
+# Plotting Data
+
+Using ggplot2 there are many different plotting functions that can be used to show how the data looks. Which one to use depends on which part of this data needs to be emphasized. Below is an example with Titanic data - if you want to add more things look up more options with geom_point. There are also other plotting functions in R; the simplest is "plot" (which was used in the first notebook). 
+
+There are many more packages and many other softwares for plotting as well. One challenge with graphs and plots is that often they have a lot of information and people do not have the required time to view and understand. Also, sometimes people are not sure whether they should look for a trend or a distribution, and do not think about flipping the axis to see the reverse story. Neverthless, there is some saying "a picture is worth a 1000 words" or something like that so a good plot can still be effective.
+
+Here's an example of two plots made with ggplot.
+
+
+```{r ggplot}
+library(ggplot2)
+
+ggplot(data = dfTrain) + 
+  geom_point(mapping = aes(x = Age, y = Fare, size=as.factor(Survived), color=Sex))
+
+ggplot(data=dfTrain) + 
+  geom_point(mapping=aes(x=Age, y=Fare, color=as.factor(Pclass), alpha=Survived, shape=Sex))
+
+```
+
+There are many more interesting display variables that can be added with ggplot as well, and many more types of graphs using geom_smooth(), geom_bar(), stat_summary(). Here is an example with geom_bar() counting how many people are in each class.
+
+```{r ggplotBar}
+ggplot(data = dfTrain) + 
+  geom_bar(mapping = aes(x = Pclass, fill=Survived))
+```
+
+Here is an example summarizing the age of all the people in a different class.
+
+```{r summaryplot}
+ggplot(data = dfTrain) + 
+  stat_summary(
+    mapping = aes(x = Pclass, y = Age),
+    fun.ymin = min,
+    fun.ymax = max,
+    fun.y = median
+  )
+```
+
+There are also ways to fill inside the bars and add more details! Those can be found using the associated book.
+
+# Summary, Arrange, Select, Filter, Mutate, Group By Functions
+
+Some summary functions are installed with R. Those still provide accurate summaries but are less useful when building complicated commands. Summary functions give results like mean, median, quantiles etc. In R there is a built in "summary()" which gives the min, max, median, mean, and 1st/3rd quantiles of a set of numbers. There will be a short example below for inbuilt R functions, and then more detailed examples later of how to use the summary and transformation functions in dplyr. 
+
+```{r summaries}
+# summarize fare
+summary(dfTrain$Fare)
+
+# summarize fare of survivors
+summary(dfTrain$Fare[dfTrain$Survived == 1])
+```
+
+## Filter
+
+Sometimes it's more useful to take a summary of very specific instances in the data, for example, a summary of the Age of all survivors where they are female or a summary of all variables for passengers who are 18. The first step to find these summaries is to filter the data and pull only the necessary rows.  
+
+Such filters are really effectively done using the "dplyr" library inside the tidyverse package. Below are some examples of filters. The full filtered data is saved in a variable and only the first few rows are shown as a display using the below code.
+
+```{r filter}
+# filter all fields for only females that have not survived
+females <- filter(dfTrain, Sex == "female")
+
+# filter all fields for only females that have survived
+survivingFemales <- filter(dfTrain, Survived == 1, Sex == "female")
+
+# filter all passengers who were 18 years old
+age18 <- filter(dfTrain, Age == 18)
+
+head(females)
+head(survivingFemales)
+head(age18)
+
+summarise(survivingFemales)
+```
+
+Filters and summaries are quite powerful tools to get initial ideas about what data looks like. They are also great for figuring out how much data is missing, and whether or not there are any anomalies. 
+
+## Arrange
+
+Arrange sorts rows. Here are some examples (just showing the first few rows)
+
+```{r arrange}
+sortAge <- arrange(dfTrain, desc(Age))
+sortId <- arrange(dfTrain, desc(PassengerId))
+
+head(sortAge)
+head(sortId)
+```
+
+## Select
+
+Select is especially useful when there are many columns. In this case, since there are not that many, select is not that useful, but still... an example (again only the first few rows are shown)
+
+```{r select}
+selectUsefulCols <- select(dfTrain, Age, Fare, Pclass, Survived)
+head(selectUsefulCols)
+```
+
+## Mutate
+
+Mutate is especially useful when trying to create a new field out of the existing fields (field in this case is a column). This will add a new column to the end of the dataset. Here are a few examples (they seem useful but are used more to illustrate the concept).
+
+```{r mutate}
+funnyNewFields <- mutate(dfTrain, lettersInName = length(Name), farePerYear = Fare/Age)
+head(funnyNewFields)
+```
+
+Another useful application of mutate is to convert a numeric variable into a categorical one, for example it is possible to separate age into greater than 50 and less than 50 or Fare into 3 categories (less than 20, greater than 20 and less than 40, greater than 40).
+
+```{r mutate2}
+selectAndMutate <- select(mutate(dfTrain, ageBuckets = as.numeric(Age>50 | is.na(Age)), fareBuckets = ifelse(Fare < 20, 2, ifelse(Fare < 40, 1, 0))), Name, Age, Fare, Pclass, ageBuckets, fareBuckets, Survived)
+```
+
+## Summarise and group_by
+
+Finally, a summarise function in dplyr can give specific summary stats, and running a built in "summary" function on a filtered dplyr table also gives good results. Here is an example:
+
+```{r dplyrSummary}
+summary(females)
+summary(survivingFemales)
+
+summarise(females, count = n(), age = mean(Age, na.rm=TRUE), fare = mean(Fare,na.rm=TRUE))
+```
+
+It is also possible to use group_by() to get summaries about specific subgroups.
+
+```{r groupby}
+# Using pipe commands to build interesting summaries
+selectAndMutate %>% group_by(fareBuckets) %>% summarise(count=n(), ages=mean(Age,na.rm=TRUE))
+
+selectAndMutate %>% group_by(Pclass) %>% summarise(count=n(), ages=mean(Fare,na.rm=TRUE))
+```
+
+Consult the book for more examples of putting fields together!
+
+## Applying Functions on Vectors and Lists in R
+
+This is not a "dplyr" feature, but it is an important idea for working with vectors and lists. In R, it is usually best to avoid loops on vectors and instead use a function known as "apply" which applies the same function to all of the elements in a vector. This is so that the computer can take advantage of parallelization in the future, and process the code much faster. 
+
+To effectively use apply, it is good to write a function you want that can be applied to any individual element in a vector. Then, simply use lapply to apply that individual element function to every element and store the result in a list. The unlist command can convert a list back into a vector. An example of this is below, the first function will add1 to every element in the numeric vector and the second function will add the letter "a" to the start of each string. 
+
+```{r applyFn}
+add1 <- function(x) {
+  return (x+1)
+}
+
+adda <- function(x) {
+  return (paste("a", x, sep=""))
+}
+
+unlist(lapply(c(1,2,3,4,5), add1))
+unlist(lapply(c("a","ab", "abc", "abcd"), adda))
+```
+
+There are other methods of apply too which work on different data structures; run help(lapply) to learn more!
+
+The extra topics in these notebooks called "functional programming" are also great tools to program smarter in R, and will be especially useful for assignments. 
+
+# Task with Titanic Data
+
+Using the training set, try to come up with an idea of which types of passengers survived based on the features given. To do this, use various summaries and graphs to get an idea of how variables are distributed for passengers of different types.
+
+Also, generate at least one additional feature from the given features for yourself. For example, you can look at the "Name" field for females to determine if they were married or not and create a new vector accordingly. Another example is to use some letters in the ticket type (or whether or not there is a ticket) to see if it correlates with survival chances. The feature you generate does not have to be the best indicator - the point is more to get used to generating features from existing examples. You can do this feature generation with a function (i.e if "mrs" is a substring in name then output 1 else output 0) and the output should be a vector. An example of an easy feature is below... it simply measures whether or not the letter "m" exists in the name. Be creative when finding a feature that works!
+
+This task is open ended - but in the end you will use whatever indicators you have built with the training set and try to classify people in the testing set. This means in the end you must write a function that takes in certain variables and outputs the result (1 if survived, 0 otherwise). 
+
+Show all of your work! That includes what summary functions and plots you used and how you analyzed them to reach your results, as well as the final function and some sample inputs+outputs.
+
+```{r exampleSubmission}
+#this is a very simplistic example, more to use as a template and complicate yourself
+
+isLetterM <- function(x) {
+  if ("m" %in% unlist(strsplit(tolower(x), ""))) {
+    return(1)
+  } else {
+    return(0)
+  }
+}
+
+letterM <- unlist(lapply(dfTrain$Name, isLetterM))
+
+# feature letterM is built
+
+survivalTest <- function(Age, Name, Fare) {
+  if (Age > 20) {
+    if (isLetterM(Name)) {
+      if (Fare > 15) {
+        return(1)
+      } else {
+        return (0)
+      }
+    } else if (Fare < 8) {
+      return (1)
+    } else {
+      return(0)
+    }
+  } else if (Age < 20) {
+    return (0)
+  }
+}
+```
+
+# Task with Gapminder Data
+
+Find some data on gapminder homepage that interests you. Using Microsoft Excel, try to clean the data up and save it as a "csv" file. If you are able to load your cleaned data into R then you can continue, otherwise send to instructor the set you are thinking to get help cleaning it.
+
+Gapminder has a very interesting display, but sometimes to get a bigger picture of what is going on focusing on a subset of data and putting it into a graph or plot is enough. In this task you can make use of "ggplot2" package, and the group that can create the most interesting and quirky graph wins! (For simplicity purposes try to only pick 2 indicators i.e income per person and life expectancy... if you are feeling very bold you can try to make a 3D plot and maybe you will get very interesting results).
+
+If you do not like the results with ggplot2 then go ahead and use whatever other plotting software you know.
+
+Both tasks will be done in teams - the Gapminder Data is more of a challenge while the Titanic data work is important for understanding.

@@ -1,0 +1,428 @@
+---
+title: "Regression"
+author: "Aditya Maheshwari"
+date: '2018-06-30'
+output: html_document
+---
+
+# Libraries
+
+This section just ensures you have the correct libraries. When you run the code block if no errors show continue otherwise follow the instructions in the block or ask for help. 
+
+```{r addLibraries}
+#install.packages("pryr")
+data("cars")
+
+# If tidyverse works
+library(tidyverse)
+
+# If tidyverse doesn't work:
+  # 1. Comment out the "library(tidyverse)" line.
+  # 2. Uncomment the below lines and run the block
+#install.packages("dplyr")
+#library(dplyr)
+```
+
+# Introduction
+
+Regression is a very important part of many statistical activities ranging from simple prediction, displaying a trendline, or even as a part of sohpisticated machine learning algorithms. Regression can also be used to select which features/variables are useful from data, which can be important when trying to reduce the size of a problem. At a high level, it is a mathematical technique that is used to predict the value of an outcome Y given input variables X. 
+
+## Prerequisites
+
+To understand regression it's important that one knows the basics of calculus, basic linear algebra (vectors, matrices, operations on matrices) and so on.
+
+## Some Regression Applications
+
+- Stock Prediction
+- Tweet Popularity
+- Reading the mind
+- House Prices
+- Really anything where there is data and you are trying to predict an output based on an input (interpolation or extrapolation)
+
+# Simple Linear Regression
+
+Regression can be done in n-dimension, but the math remains very similar to doing it in one dimension. When regression uses only one input to predict an output it is called simple linear regression.
+
+## Equation
+
+The simple linear regression equation is:
+
+  $$ y_i = w_0 + w_1x_i + err_i $$
+
+$y_i$ stands for the output for input i, $w_0$ is the intercept term, and $w_1$ is the slope of the line. Again, simple linear regression is simple because you are just fitting a line. In calculus you must have seen the equation for a line - and this is kind of the same idea. The slightly complicated part is finding which line fits the set of points the "best". 
+
+## Measuring Error
+
+To decide what the best line is, we have to come up with an idea for measuring how good one fit is from another. We can see in many cases which line seems just by observation, but when two different lines look equally good a measure; here I will introduce a fairly standard one known as the residual sum of squares (RSS). 
+
+$$RSS = \sum_{i=1}^{n}(y_i - [w_0 + w_1x_i])^2$$
+
+This is a relative measure of distance from the real values to the fitted line. In the initial equation the noise ($err_i$) is the vector that makes up for difference between line and predicted value. This value is squared to include consistent distances for negative values, as well as to amplify the distance relative to how far the points are from the line. 
+
+## Gradient Descent
+
+But how to find whether a particular line has the minimum RSS? 
+
+You know from calculus finding the minimum of things usually involves some sort of a derivative. Clearly one line fits the best (least error) so if we take every possible line going through the same (similar) intercepts, they will converge at a minimum RSS. (Think about why there can't be two lines of minimum RSS).
+
+The algorithm used to find the minimum line is known as gradient descent. This will give approximately the correct answer, and functions by way of hill climbing. Gradient descent is usually done in the back end of most packages - but I will give a short description of the algorithm here. Many resources are online that can explain one of the steps or theory if it is unclear. 
+
+The idea is that given a step size (n), a weight vector (w), and a tolerance:
+while not converged:
+  $$w^{(t+1)} = w^{(t)} - n\nabla g(w^{(t)})$$
+
+In the case of simple linear regression, we want:
+$$min_{w_0,w_1}\sum_{i=1}^{N}(y_i-[w_0+w_1 x_i])^2$$
+
+So we need the gradient of the RSS expression with respect to $w_0$ and $w_1$, which (you can check it yourself) evaluates to:
+
+$$
+\nabla RSS(w_0, w_1) = 
+\begin{bmatrix}
+-2\sum_{i=1}^{N}[y_i-(w_0+w_1x_i)]
+\\
+-2\sum_{i=1}^{N}[y_i-(w_0+w_1x_i)]x_i
+\end{bmatrix}
+$$
+
+This idea can translate to more than 2 dimensions and in that case rather than finding a local min/max in a curve, it will involve finding the local min/max in a plane or hyperplane.
+
+# Regression Package and Application
+
+To demonstrate linear regression in R, we will use the built in "cars" package which has speed and distance information from 50 cars. 
+
+```{r cars}
+cars
+```
+
+## Filtering Questions
+
+The following questions are just some filtering tasks to get some more ideas about the data:
+
+1. What's the average speed of cars with distance larger than 30?
+
+2. What's the average distance for cars with speed larger than 12?
+
+3. What's the first quartile for the speed of cars with speed greater than 12 and distance greater than 50?
+
+4. For cars with distance greater than 80, is the mean or median of the speed higher?
+
+## Plotting
+
+First we should plot variables. Here I will explore a few more specific plots versus the freestyle ones you used in Titanic.
+
+First we will explore scatter plots (which can check for a trend), boxplots (which can identify outliers), and density plots (to see if the response variable does not deviate too much; is close to normality).
+
+```{r carPlots}
+# Scatter Plots
+scatter.smooth(cars$speed,cars$distance, main="speed vs dist")
+
+# Box Plots
+par(mfrow=c(1,2))
+boxplot(cars$speed,main="speed")
+boxplot(cars$dist,main="dist")
+
+# Density Plots
+plot(density(cars$speed), main="speed")
+plot(density(cars$dist), main="dist")
+```
+
+## Correlations
+
+Next we can check the correlation of the two variables to see if in fact they are related. Correlation is a measure of how strongy linear the relation of the variables is. The correlation coefficient is calculated as follows:
+$$r_{xy} = \frac{s_{xy}}{s_x s_y}$$
+Note, $s_{xy}$ is the covariance while $s_x$ and $s_y$ are the standard deviations.
+
+Standard deviation is calculated with: 
+$$s_x=\sqrt{\frac{\sum{(x_i - \bar{x})^2}}{n}}$$
+Covariance is calculated with: 
+$$\frac{\sum{(x_i - \bar{x})(y_i - \bar{y})}}{n-1}$$
+
+5. QUESTION: Given that information, what range of values can the correlation coefficient take? Prove why the bounds bounds are the bounds.
+
+A correlation coefficient close to 0 implies there is a weak linear relation, and positive or negative values close to the boundaries imply a strong positive linear or negative linear relationship, respectively. To explain this in more formal terms, a correlation coefficient close to 0 suggests that the variation in the response variable (Y) is largely unexplained by the predictor (X). 
+
+In R, you can calculate the correlation coefficient as follows:
+
+```{r correlation}
+cor(cars$speed, cars$dist)
+```
+
+## Linear Model
+
+This sub section will cover building the linear model and analyzing it.
+
+### Creating a linear model
+
+In R, you can define and save a linear model (or any model) the same way we can save functions or variables (with the assignment operator, "<-"). Below, we will create a linear model for speed and distance:
+
+```{r lm}
+linearModel <- lm(dist ~ speed, data=cars)
+
+print(linearModel)
+```
+
+6. QUESTION: In the model above, what does "Intercept" and "speed" stand for using the regression equation defined at the beginning of this notebook?
+
+### Summarize specific features
+
+We can see more informations below:
+
+```{r sumLinearModel}
+summary(linearModel)
+```
+
+### Make predictions
+
+Here is a method for using the linear model above to predict data for new points:
+
+```{r predictions}
+# first we set a seed
+set.seed(100) 
+
+# we will separate some data to use for testing our model (in this case 10 percent)
+testingRowIndex <- sample(1:nrow(cars), 0.1*nrow(cars))
+testData  <- cars[testingRowIndex, ]
+
+# predict distance from speed inputs
+distPred <- predict(linearModel, testData)  
+
+summary (linearModel)  # model summary
+```
+
+### Measure error
+
+Now we can make a table which checks how close the predictions are to the actual values and calculate the residual sum squares.
+
+```{r measureError}
+actuals_preds <- data.frame(cbind(actuals=testData$dist, predicteds=distPred))  # make actuals_predicteds dataframe.
+correlation_accuracy <- cor(actuals_preds)  # 82.7%
+head(actuals_preds)
+
+# Residual Sum Squares
+sum((actuals_preds$predicteds - actuals_preds$actuals) ** 2)
+```
+
+### Plotting
+
+Finally, we will plot our regression line on the points we have from the data using the following code:
+
+```{r plotRegressionLine}
+plot(cars$speed, cars$dist)
+abline(linearModel)
+```
+
+### Conclusion
+We can see that the data does seem to have a lot of variation, and therefore the linear model only does an ok job of predicting.
+
+### Small Tasks and Questions
+
+7. TASK: Train the model on a different training set by setting the seed to 10 and calculate the residual sum of squares... is it different? Why?
+
+  NOTE: You do this by setting a new seed (0) and rerunning the above code. It is a good idea to do this in a separate R Script or R Markdown Notebook. 
+
+8. QUESTION: Looking at the plots, what do you think the distance a car travelling at speed 30 would travel in the model you just built?
+
+9. TASK: What are the predictions you get for the following set of speeds? 
+2,3,5,15,26,30
+
+  HINT: Put the data the correct form using "as.data.frame" and a vector with the speeds required.
+  
+  2nd HINT: use "colnames" function to give the dataframe column the right name for predictions, and predict using the method above.
+
+```{r newSpeeds, echo=FALSE}
+b <- as.data.frame(cbind(c(2,3,5,15,26,30)))
+colnames(b) <- "speed"
+#predict(linearModel, b)
+```
+
+# Multiple Linear Regression
+
+Multiple Linear Regression (MLR) works almost the same mechanically as simple linear regression (SLR), except that it accounts for multiple inputs.
+The formula at a high level changes from: $y_i = w_0 + w_1x_1 + err_i$ to $y_i = w_0 + w_1x_1 + w_2x_2  + ... + err_i$
+
+## Code for multiple regression
+
+Code for it is as follows:
+
+```{r multRegression}
+swissModel <- lm(Infant.Mortality ~ Fertility + Agriculture + Catholic, data=swiss)
+
+summary(swissModel)
+```
+
+## Interpreting Results
+
+Now is a good time to understand what the summary command says.
++ The first element ("Call") tells you back the formula that was inputted.
++ The residuals section shows how the residuals are distributed. Residuals are the difference between actual points and model prediction - and if the residuals are distributed symmetrically around 0 that is a good sign. Usually it is a good idea to plot residuals and check the distribution, but that feature may not always be available to you. Generally, if you see an even distribution around 0 and the relationship does not follow a pattern of dispersion it is a good sign. 
+
+```{r residualsplot}
+plot(swissModel$residuals, main="Residuals Plot")
+abline(h=0)
+```
+
++ The coefficients have many components:
+  + The first one is the estimate of the value of $w_0$, $w_1$ etc. in the regression equation. 
+    + In this case, the estimate represents that with no other factors, infant mortality will be 13.565... and with every unit increase in Fertility, the estimate can increase by ~.11, and so on for the other features. 
+  + The standard error estimates the average amount that estimates vary from the actual response. This means (intuitevly) that we want the standard error to be very small compared to the estimate. Using that logic it appears that in the above Fertility is the only really good indicator, and Catholic is certainly a bad one. 
+  + Coefficient t-value represents how far (how many standard deviations) the estimate is from 0. An answer closer to zero implies that this factor does not impact the output variable much. Therefore, for a useful predictor, we want this value to be as far from zero as possible (such as the intercept, fertility and even agriculture).
+  + Pr(>|t|) is the p-value which is used in hypothesis testing. To give a tldr version of hypothesis testing:
+    + You are almost always testing whether or not the null hypothesis is true (meaning that whatever input you are testing has no value on the response) and if the p-value is larger than 0.05 you typically accept that this null hypothesis is true otherwise you can reject it, and rejecting it means the input is important. 
+    + Typically a value will get rejected for a reason discussed above (i.e too much variation or too much an intercept too close to 0).
++ In the last section, there are many more measures of "goodness of fit" out of which the most notable one is "Adjusted-R Squared". The Adjusted-R squared is an estimate of how much of the models response variable is explained by an input (in this case 17%) which is bad. 
+  + Some people also look at the F-statistic which is measured based on how much larger it is than the number of variables inputted. Either way, the point is to assess how good the "fit" is. 
+
+### Discarding Variables
+
+One biproduct of all of these pieces of information is that we can now discard features that are taking up time. That way, when we are predicting we can input less fields and also run the model on less variables (all saving runtime).
+
+There are two easy ways you can choose to discard variables:
+
++ 1. Remove features with a high p-value.
++ 2. Try all subsets of features and choose the combination with the highest R-squared.
+
+## Summary
+
+In summary, all of the above methods are used a lot in traditional experiments, and are a large part of statistical theory. It is usually ignored today, but still good to know about as in the future if you get funny results this can be a good indicator. Another very important part of these applications is having the ability to discard useless variables.
+
+# Group Task
+
+## Questions:
+Answer the questions from above (except the proof in Q5 they are all numerical or TRUE/FALSE)
+
+Fill in Answers for All Questions (above)
+
++ 1.
++ 2.
++ 3.
++ 4.
++ 5.
++ 6.
++ 7.
++ 8.
++ 9.
+
+## Task:
+
+You will get a dataset and be required to create a model which can predict. The datasets will be split among the groups.
+
+The task is to use the form of the notebook given above to create a similar style above, and then as a group give a 2-3 min presentation explaining what you have learned from the data. 
+
+You must:
+- Use some filters to highlight features of the data
+- Plot the data (use different plots for different things)
+- Build a linear model
+- Split the data and do some predictions
+- Measure the accuracy
+- Find some conclusion (i.e which of the multiple inputs predicts the output the best)
+
+If you want to save a LOT of time, figure out how to do multiple regression and use all 3 inputs at once to predict the output.
+
+### Group1
+
+Predict rating [output] given: complaints, privileges, learning [inputs]
+```{r g1}
+data("attitude")
+rating <- attitude[[1]]
+complaints <- attitude[[2]]
+privileges <- attitude[[3]]
+learning <- attitude[[4]]
+```
+
+### Group2
+
+Predict rating [output] given: raises, critical, advance [inputs]
+```{r g2}
+data("attitude")
+rating <- attitude[[1]]
+raises <- attitude[[5]]
+critical <- attitude[[6]]
+advance <- attitude[[7]]
+attitude
+```
+
+
+### Group3
+
+Predict Fertility[output] given: Infant.Mortality, Education, Agriculture [inputs]
+```{r g3}
+data("swiss")
+#output(y)
+Fertility <- swiss[[1]]
+
+Infant.Mortality <- swiss[[6]]
+Education <- swiss[[4]]
+Agriculture <- swiss[[2]]
+#swiss
+```
+
+### Group4
+
+Predict Infant Mortality [output] given: Fertility, Agriculture, Catholic [input]
+```{r g4}
+data("swiss")
+#output(y)
+Infant.Mortality <- swiss[[6]]
+
+#input(x)
+Fertility <- swiss[[1]]
+Agriculture <- swiss[[2]]
+Catholic <- swiss[[5]]
+swiss
+```
+
+# Extra Topic: Polynomial Regression
+
+It is possible you are wondering: why only linear regressions? Even in many dimensions, aren't some curves better approximated with polynomials? 
+
+You are right! There are polynomial regressions too, and they also look surprisingly the same as linear regressions. I will show a quick example here, and do so by plotting functions directly in R. By the way, plotting functions in R can be useful for non-statistics reasons as well!
+
+```{r polyregression}
+set.seed(20)
+
+#values in sequence
+q <- seq(from=0, to=20, by=0.1)
+#values to predict
+y <- 500 + .4*(q-10)^3
+
+# add some noise so graph looks better
+noise <- rnorm(length(q), mean=10, sd=80)
+noisy.y <- y + noise
+
+# plot points
+plot(q, noisy.y, col='skyblue4', xlab='q')
+lines(q,y,col='firebrick1', lwd=3)
+
+# Cubic vs Quadratic vs Linear Model
+modelCube <- lm(noisy.y ~ poly(q,3))
+modelQuad <- lm(noisy.y ~ poly(q,2))
+modelLinr <- lm(noisy.y ~ poly(q,1))
+
+# Summarize
+summary(modelCube)
+summary(modelQuad)
+summary(modelLinr)
+
+# Predictions + Lines
+df <- data.frame(x=q,y)
+
+predicted.intervals.Cube <- predict(modelCube,df)
+lines(q,predicted.intervals.Cube, col='tan3', lwd=3)
+
+predicted.intervals.Quad <- predict(modelQuad,df)
+lines(q,predicted.intervals.Quad, col='darkolivegreen2', lwd=3)
+
+predicted.intervals.Lin <- predict(modelLinr,df)
+lines(q,predicted.intervals.Lin, col='steelblue4', lwd=3)
+
+# Residual Sum Squares
+RSScube <- sum((predicted.intervals.Cube - y)**2)
+RSSquad <- sum((predicted.intervals.Quad - y)**2)
+RSSlin <- sum((predicted.intervals.Lin - y)**2)
+
+# Print Results 
+print(paste("RSScube (Tan): ", RSScube))
+print(paste("RSSquad (Green): ", RSSquad))
+print(paste("RSSlin (Blue): ", RSSlin))
+```
